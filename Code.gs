@@ -496,6 +496,27 @@ function handleGetSignatureInfo(nik) {
   }
 }
 
+function handleFetchImages(fileIds) {
+  try {
+    const results = {};
+    fileIds.forEach(function(id) {
+      try {
+        const url = 'https://drive.google.com/uc?export=view&id=' + id;
+        const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
+        const blob = response.getBlob();
+        const base64 = Utilities.base64Encode(blob.getBytes());
+        const ct = blob.getContentType() || 'image/jpeg';
+        results[id] = 'data:' + ct + ';base64,' + base64;
+      } catch(e) {
+        results[id] = '';
+      }
+    });
+    return { success: true, images: results };
+  } catch(e) {
+    return { success: false, message: e.message };
+  }
+}
+
 // --- POST Entry Point ---
 function doPost(e) {
   try {
@@ -544,6 +565,9 @@ function doPost(e) {
         break;
       case "getSignatureInfo":
         result = handleGetSignatureInfo(postData.nik);
+        break;
+      case "fetchImages":
+        result = handleFetchImages(postData.fileIds);
         break;
       default:
         result = { success: false, message: "Action tidak dikenal." };

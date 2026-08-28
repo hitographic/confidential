@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Confidential</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><text y='.9em' x='50' text-anchor='middle' font-size='80'>🛡️</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -3379,24 +3380,30 @@
             const lampiranArea = document.getElementById('lampiranArea');
             const lampiranWasHidden = lampiranArea.classList.contains('hidden');
 
-            // Pre-fetch all lampiran images as data URLs (CORS-safe)
+            // Pre-fetch all lampiran images via backend (CORS-safe)
             const lampiranItems = d.lampiran || [];
             if (lampiranItems.length > 0) {
               Swal.update({ title: 'Mengunduh foto lampiran...', text: `0/${lampiranItems.length} foto` });
-              for (let i = 0; i < lampiranItems.length; i++) {
-                try {
-                  const resp = await fetch(lampiranItems[i].url);
-                  const blob = await resp.blob();
-                  const dataUrl = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(blob);
-                  });
-                  const imgs = document.querySelectorAll('#lampiranGrid .lampiran-item img');
-                  if (imgs[i]) imgs[i].src = dataUrl;
-                } catch(e) { console.warn('Foto gagal dimuat:', e); }
-                Swal.update({ title: 'Mengunduh foto lampiran...', text: `${i+1}/${lampiranItems.length} foto` });
+              // Extract fileIds from URLs
+              const fileIds = lampiranItems.map(item => {
+                const match = item.url.match(/id=([^&]+)/);
+                return match ? match[1] : null;
+              }).filter(Boolean);
+
+              // Fetch all images via backend in one call
+              const imgRes = await fetch(GAS_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'fetchImages', fileIds: fileIds })
+              }).then(r => r.json());
+
+              if (imgRes.success) {
+                const imgs = document.querySelectorAll('#lampiranGrid .lampiran-item img');
+                fileIds.forEach((fid, i) => {
+                  if (imgs[i] && imgRes.images[fid]) {
+                    imgs[i].src = imgRes.images[fid];
+                  }
+                  Swal.update({ title: 'Mengunduh foto lampiran...', text: `${i+1}/${fileIds.length} foto` });
+                });
               }
             }
 
@@ -3430,6 +3437,9 @@
               lp.style.margin = '0';
             }
 
+            // Wait for images to render
+            await new Promise(r => setTimeout(r, 500));
+
             Swal.update({ title: 'Membuat PDF...', text: 'Halaman 1: Pengamatan Internal Audit' });
             await new Promise(r => setTimeout(r, 200));
 
@@ -3442,9 +3452,11 @@
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF('p', 'mm', 'a4');
             const pdfW = 210;
-            const pdfH = 297;
-            const imgH1 = (canvas1.height * pdfW) / canvas1.width;
-            pdf.addImage(canvas1.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfW, imgH1);
+
+            if (canvas1.width > 0 && canvas1.height > 0) {
+              const imgH1 = (canvas1.height * pdfW) / canvas1.width;
+              pdf.addImage(canvas1.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfW, imgH1);
+            }
 
             if (!lampiranWasHidden && lampiranItems.length > 0) {
               Swal.update({ title: 'Membuat PDF...', text: 'Halaman 2: Lampiran' });
@@ -3457,9 +3469,11 @@
                 width: 794, windowWidth: 794
               });
 
-              pdf.addPage();
-              const imgH2 = (canvas2.height * pdfW) / canvas2.width;
-              pdf.addImage(canvas2.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfW, imgH2);
+              if (canvas2.width > 0 && canvas2.height > 0) {
+                pdf.addPage();
+                const imgH2 = (canvas2.height * pdfW) / canvas2.width;
+                pdf.addImage(canvas2.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfW, imgH2);
+              }
             }
 
             // Restore elements
