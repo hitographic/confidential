@@ -1,7 +1,7 @@
 // Menampilkan halaman HTML saat webapp diakses
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('Index')
-    .setTitle('Aplikasi Audit Internal Matrika')
+    .setTitle('Confidential')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }

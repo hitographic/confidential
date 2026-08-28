@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Matrika Audit Internal</title>
+  <title>Confidential</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -36,6 +36,7 @@
       background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
       color: var(--text-dark);
       min-height: 100vh;
+      padding-bottom: 45px;
     }
 
     /* Utils */
@@ -828,7 +829,7 @@
 
   <!-- NAVBAR -->
   <nav class="navbar hidden" id="navbar">
-    <div style="font-weight: bold; font-size: 1.2rem;"><i class="fa-solid fa-clipboard-check"></i> Matrika Audit</div>
+    <div style="font-weight: bold; font-size: 1.2rem;"><i class="fa-solid fa-clipboard-check"></i> Confidential</div>
     <div style="display: flex; gap: 15px; align-items: center;">
       <span id="navAuditorName">Auditor</span>
       <button class="btn btn-outline" style="color: white; border-color: rgba(255,255,255,0.3);" onclick="openRegisterSignature()"><i class="fa-solid fa-signature"></i> Ganti TTD</button>
@@ -3695,6 +3696,13 @@
       }
 
     </script>
+
+    <!-- FOOTER -->
+    <footer style="position: fixed; bottom: 0; left: 0; right: 0; text-align: center; padding: 10px; background: rgba(15,23,42,0.85); backdrop-filter: blur(8px); color: #94a3b8; font-size: 12px; z-index: 99; font-family: 'Inter', sans-serif;">
+      &copy; <span id="footerYear"></span> ver.1.0.0 by Confidential for Indofood
+    </footer>
+    <script>document.getElementById('footerYear').textContent = new Date().getFullYear();</script>
+
 </body>
 
 </html>
