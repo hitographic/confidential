@@ -264,6 +264,21 @@ function handleSaveData(formData, status) {
     let savedDepartemen = formData.departemen || (existingData[10] || "-");
     let savedLampiran = formData.lampiran || (existingData[11] || "[]");
 
+    // Proses lampiran: upload foto base64 ke Google Drive
+    let lampiranArr = typeof savedLampiran === 'string' ? JSON.parse(savedLampiran || '[]') : (savedLampiran || []);
+    const kategori = formData.kategori || 'Lainnya';
+    lampiranArr = lampiranArr.map((item, idx) => {
+      if (item.url && item.url.startsWith('data:image')) {
+        const fileName = id + '_lampiran_' + (idx + 1) + '_' + new Date().getTime() + '.png';
+        const uploaded = handleUploadPhoto(item.url, kategori, fileName);
+        if (uploaded.success) {
+          return { url: uploaded.url, fileId: uploaded.fileId, caption: item.caption || '', itemIndex: item.itemIndex !== undefined ? item.itemIndex : 0 };
+        }
+      }
+      // Sudah berupa URL Drive, pertahankan
+      return { url: item.url || '', fileId: item.fileId || '', caption: item.caption || '', itemIndex: item.itemIndex !== undefined ? item.itemIndex : 0 };
+    });
+
     if (status === 'Submitted') {
        if (urlAuditor.startsWith('data:image')) {
          urlAuditor = saveImageToDrive(urlAuditor, id + "_auditor.png");
@@ -300,7 +315,7 @@ function handleSaveData(formData, status) {
       urlAuditee,
       hashIntegritas,
       savedDepartemen,
-      typeof savedLampiran === 'string' ? savedLampiran : JSON.stringify(savedLampiran)
+      JSON.stringify(lampiranArr)
     ];
 
     if (isUpdate && rowIndex > -1) {
