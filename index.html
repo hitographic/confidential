@@ -644,6 +644,105 @@
       object-fit: contain;
     }
 
+    /* --- SIGNATURE CROP MODAL --- */
+    #sigCropModal .modal-content {
+      max-width: 550px;
+    }
+
+    .sig-crop-wrap {
+      position: relative;
+      width: 100%;
+      background: #1a1a2e;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 12px;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .sig-crop-wrap canvas {
+      display: block;
+      width: 100%;
+      cursor: grab;
+    }
+
+    .sig-crop-wrap canvas:active {
+      cursor: grabbing;
+    }
+
+    .sig-zoom-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: #f1f5f9;
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+
+    .sig-zoom-controls .zoom-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1px solid #cbd5e1;
+      background: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: #334155;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+
+    .sig-zoom-controls .zoom-btn:hover {
+      background: #e2e8f0;
+      border-color: #94a3b8;
+    }
+
+    .sig-zoom-controls .zoom-btn:active {
+      transform: scale(0.92);
+    }
+
+    .sig-zoom-controls input[type="range"] {
+      flex: 1;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: #cbd5e1;
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .sig-zoom-controls input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--secondary);
+      border: 2px solid white;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+      cursor: pointer;
+    }
+
+    .sig-zoom-controls .zoom-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748b;
+      min-width: 40px;
+      text-align: center;
+    }
+
+    .sig-crop-info {
+      font-size: 11px;
+      color: #94a3b8;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
     /* --- LAMPIRAN STYLES (PDF) --- */
     #lampiranArea {
       page-break-before: always;
@@ -980,6 +1079,27 @@
       <div style="display: flex; justify-content: flex-end; gap: 10px;">
         <button class="btn btn-outline" onclick="cancelCrop()">Batal</button>
         <button class="btn btn-primary" onclick="confirmCrop()"><i class="fa-solid fa-check"></i> Simpan Foto</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SIGNATURE CROP & ZOOM -->
+  <div id="sigCropModal" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width: 550px;">
+      <h3 style="margin-bottom: 10px;">Atur Tanda Tangan</h3>
+      <p class="sig-crop-info">Geser kotak untuk memindai area. Tarik sudut untuk ubah ukuran. Scroll mouse atau gunakan slider untuk zoom.</p>
+      <div class="sig-crop-wrap">
+        <canvas id="sigCropCanvas" width="500" height="300"></canvas>
+      </div>
+      <div class="sig-zoom-controls">
+        <button class="zoom-btn" onclick="sigCropZoomStep(-0.1)" title="Zoom Out">−</button>
+        <input type="range" id="sigZoomSlider" min="20" max="400" value="100" oninput="sigCropZoom(parseInt(this.value)/100)">
+        <button class="zoom-btn" onclick="sigCropZoomStep(0.1)" title="Zoom In">+</button>
+        <span class="zoom-label" id="sigZoomLabel">100%</span>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn btn-outline" onclick="sigCropCancel()">Batal</button>
+        <button class="btn btn-primary" onclick="sigCropSave()"><i class="fa-solid fa-check"></i> Gunakan</button>
       </div>
     </div>
   </div>
@@ -2032,113 +2152,374 @@
         });
       }
 
+      // --- SIGNATURE CROP & ZOOM ---
+      let sigCrop = {
+        img: null,
+        canvas: null,
+        ctx: null,
+        targetCanvasId: '',
+        zoom: 1,
+        imgX: 0,
+        imgY: 0,
+        box: { x: 0, y: 0, w: 0, h: 0 },
+        drag: null,
+        dragStart: null,
+        minZoom: 0.2,
+        maxZoom: 4
+      };
+
       function handleSignUpload(event, canvasId) {
         const file = event.target.files[0];
-        if(!file) return;
+        if (!file) return;
+        event.target.value = '';
         const reader = new FileReader();
         reader.onload = function(e) {
           const img = new Image();
-          img.onload = function() {
-            processUploadedSignature(img, canvasId);
-          };
+          img.onload = function() { openSigCropModal(img, canvasId); };
           img.src = e.target.result;
         };
         reader.readAsDataURL(file);
-        event.target.value = '';
       }
 
-      function processUploadedSignature(img, canvasId) {
-        const canvas = document.getElementById(canvasId);
-        if(!canvas) return;
-        const ctx = canvas.getContext('2d');
-        
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = img.width;
-        tempCanvas.height = img.height;
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCtx.drawImage(img, 0, 0);
-        
-        const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-        const data = imgData.data;
-        
-        let targetR = 0, targetG = 0, targetB = 0;
-        if(currentSignColor === '#000000') { targetR=0; targetG=0; targetB=0; }
-        else if(currentSignColor === '#333333') { targetR=51; targetG=51; targetB=51; }
-        else if(currentSignColor === '#00008B') { targetR=0; targetG=0; targetB=139; }
-        else if(currentSignColor === '#1E90FF') { targetR=30; targetG=144; targetB=255; }
-        
-        let minX = tempCanvas.width, minY = tempCanvas.height, maxX = 0, maxY = 0;
-        
-        let minB = 255;
-        let totalB = 0;
-        let brightnesses = new Uint8Array(data.length / 4);
-        
-        for(let i = 0; i < data.length; i += 4) {
-          let b = Math.round((data[i] + data[i+1] + data[i+2]) / 3);
-          brightnesses[i/4] = b;
-          if (b < minB) minB = b;
-          totalB += b;
-        }
-        
-        let avgB = totalB / (data.length / 4);
-        let threshold = minB + (avgB - minB) * 0.6; 
-        
-        for(let i = 0; i < data.length; i += 4) {
-          let b = brightnesses[i/4];
-          let a = data[i+3];
-          
-          if(b >= threshold || a < 50) {
-             data[i+3] = 0;
-          } else {
-             let alpha = Math.round(((threshold - b) / (threshold - minB)) * 255);
-             if (alpha > 255) alpha = 255;
-             if (alpha < 0) alpha = 0;
-             
-             data[i] = targetR;
-             data[i+1] = targetG;
-             data[i+2] = targetB;
-             data[i+3] = alpha;
-             
-             if (alpha > 20) {
-                 let x = (i / 4) % tempCanvas.width;
-                 let y = Math.floor((i / 4) / tempCanvas.width);
-                 if(x < minX) minX = x;
-                 if(x > maxX) maxX = x;
-                 if(y < minY) minY = y;
-                 if(y > maxY) maxY = y;
-             }
+      function openSigCropModal(img, canvasId) {
+        sigCrop.img = img;
+        sigCrop.targetCanvasId = canvasId;
+        sigCrop.canvas = document.getElementById('sigCropCanvas');
+        sigCrop.ctx = sigCrop.canvas.getContext('2d');
+
+        const cw = 500, ch = 300;
+        sigCrop.canvas.width = cw;
+        sigCrop.canvas.height = ch;
+
+        // Fit zoom so image fills canvas nicely
+        const fitZoom = Math.max(cw / img.width, ch / img.height) * 0.85;
+        sigCrop.zoom = Math.max(sigCrop.minZoom, Math.min(sigCrop.maxZoom, fitZoom));
+        sigCrop.imgX = (cw - img.width * sigCrop.zoom) / 2;
+        sigCrop.imgY = (ch - img.height * sigCrop.zoom) / 2;
+
+        // Default crop box = center 70%
+        const bw = cw * 0.7, bh = ch * 0.7;
+        sigCrop.box = { x: (cw - bw) / 2, y: (ch - bh) / 2, w: bw, h: bh };
+
+        // Update zoom slider
+        const slider = document.getElementById('sigZoomSlider');
+        slider.value = Math.round(sigCrop.zoom * 100);
+        document.getElementById('sigZoomLabel').textContent = Math.round(sigCrop.zoom * 100) + '%';
+
+        // Mouse events
+        sigCrop.canvas.onmousedown = sigCropCanvasDown;
+        sigCrop.canvas.onmousemove = sigCropCanvasMove;
+        sigCrop.canvas.onmouseup = sigCrop.canvas.onmouseleave = sigCropCanvasUp;
+        sigCrop.canvas.onwheel = sigCropCanvasWheel;
+        // Touch
+        sigCrop.canvas.ontouchstart = function(e) { e.preventDefault(); sigCropCanvasDown(touchToMouse(e)); };
+        sigCrop.canvas.ontouchmove = function(e) { e.preventDefault(); sigCropCanvasMove(touchToMouse(e)); };
+        sigCrop.canvas.ontouchend = function(e) { e.preventDefault(); sigCropCanvasUp(); };
+
+        sigCropRender();
+        showModal('sigCropModal');
+      }
+
+      function touchToMouse(e) {
+        const t = e.touches[0] || e.changedTouches[0];
+        const rect = sigCrop.canvas.getBoundingClientRect();
+        return { offsetX: (t.clientX - rect.left) * (sigCrop.canvas.width / rect.width),
+                 offsetY: (t.clientY - rect.top) * (sigCrop.canvas.height / rect.height) };
+      }
+
+      function sigCropRender() {
+        const { canvas, ctx, img, zoom, imgX, imgY, box } = sigCrop;
+        const cw = canvas.width, ch = canvas.height;
+        ctx.clearRect(0, 0, cw, ch);
+
+        // Draw checkerboard background
+        for (let y = 0; y < ch; y += 16) {
+          for (let x = 0; x < cw; x += 16) {
+            ctx.fillStyle = ((x / 16 + y / 16) % 2 === 0) ? '#2a2a3e' : '#222236';
+            ctx.fillRect(x, y, 16, 16);
           }
         }
-        
-        if (minX > maxX || minY > maxY) {
-           Swal.fire('Gagal', 'Tanda tangan tidak terdeteksi pada gambar.', 'error');
-           return;
+
+        // Draw image
+        const dw = img.width * zoom, dh = img.height * zoom;
+        ctx.drawImage(img, imgX, imgY, dw, dh);
+
+        // Dim outside crop
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(0, 0, cw, box.y);
+        ctx.fillRect(0, box.y + box.h, cw, ch - box.y - box.h);
+        ctx.fillRect(0, box.y, box.x, box.h);
+        ctx.fillRect(box.x + box.w, box.y, cw - box.x - box.w, box.h);
+
+        // Crop border
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(box.x, box.y, box.w, box.h);
+
+        // Rule of thirds
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 1;
+        for (let i = 1; i <= 2; i++) {
+          ctx.beginPath();
+          ctx.moveTo(box.x + box.w * i / 3, box.y);
+          ctx.lineTo(box.x + box.w * i / 3, box.y + box.h);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(box.x, box.y + box.h * i / 3);
+          ctx.lineTo(box.x + box.w, box.y + box.h * i / 3);
+          ctx.stroke();
         }
-        
-        tempCtx.putImageData(imgData, 0, 0);
-        let cropWidth = maxX - minX;
-        let cropHeight = maxY - minY;
-        
-        const croppedCanvas = document.createElement('canvas');
-        croppedCanvas.width = cropWidth;
-        croppedCanvas.height = cropHeight;
-        const croppedCtx = croppedCanvas.getContext('2d');
-        croppedCtx.drawImage(tempCanvas, minX, minY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-        
-        const dpr = window.devicePixelRatio || 1;
-        const logicalWidth = canvas.width / dpr;
-        const logicalHeight = canvas.height / dpr;
-        
-        ctx.clearRect(0, 0, logicalWidth, logicalHeight);
-        
-        const padding = 20;
-        const scale = Math.min((logicalWidth - padding) / cropWidth, (logicalHeight - padding) / cropHeight);
-        const drawWidth = cropWidth * scale;
-        const drawHeight = cropHeight * scale;
-        const dx = (logicalWidth - drawWidth) / 2;
-        const dy = (logicalHeight - drawHeight) / 2;
-        
-        ctx.drawImage(croppedCanvas, 0, 0, cropWidth, cropHeight, dx, dy, drawWidth, drawHeight);
+
+        // Corner handles
+        const hs = 8;
+        ctx.fillStyle = '#3b82f6';
+        [[box.x, box.y], [box.x + box.w, box.y], [box.x, box.y + box.h], [box.x + box.w, box.y + box.h]].forEach(([hx, hy]) => {
+          ctx.fillRect(hx - hs / 2, hy - hs / 2, hs, hs);
+        });
+
+        // Dimension label
+        const realW = Math.round(box.w / zoom);
+        const realH = Math.round(box.h / zoom);
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(box.x, box.y - 22, 120, 18);
+        ctx.fillStyle = '#fff';
+        ctx.font = '11px Inter, sans-serif';
+        ctx.fillText(realW + ' × ' + realH + ' px', box.x + 6, box.y - 8);
+      }
+
+      function getSigCropCursor(e) {
+        const { box } = sigCrop;
+        const hx = 12;
+        // Corners
+        if (dist(e.offsetX, e.offsetY, box.x, box.y) < hx) return 'nw';
+        if (dist(e.offsetX, e.offsetY, box.x + box.w, box.y) < hx) return 'ne';
+        if (dist(e.offsetX, e.offsetY, box.x, box.y + box.h) < hx) return 'sw';
+        if (dist(e.offsetX, e.offsetY, box.x + box.w, box.y + box.h) < hx) return 'se';
+        // Edges
+        if (e.offsetY >= box.y - 4 && e.offsetY <= box.y + 4 && e.offsetX > box.x && e.offsetX < box.x + box.w) return 'n';
+        if (e.offsetY >= box.y + box.h - 4 && e.offsetY <= box.y + box.h + 4 && e.offsetX > box.x && e.offsetX < box.x + box.w) return 's';
+        if (e.offsetX >= box.x - 4 && e.offsetX <= box.x + 4 && e.offsetY > box.y && e.offsetY < box.y + box.h) return 'w';
+        if (e.offsetX >= box.x + box.w - 4 && e.offsetX <= box.x + box.w + 4 && e.offsetY > box.y && e.offsetY < box.y + box.h) return 'e';
+        // Inside
+        if (e.offsetX >= box.x && e.offsetX <= box.x + box.w && e.offsetY >= box.y && e.offsetY <= box.y + box.h) return 'move';
+        return 'outside';
+      }
+
+      function dist(x1, y1, x2, y2) { return Math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2); }
+
+      function sigCropCanvasDown(e) {
+        const cursor = getSigCropCursor(e);
+        sigCrop.dragStart = { x: e.offsetX, y: e.offsetY };
+        sigCrop.drag = cursor;
+        sigCrop.dragBoxStart = { ...sigCrop.box };
+        sigCrop.dragImgStart = { x: sigCrop.imgX, y: sigCrop.imgY };
+
+        if (cursor === 'nw' || cursor === 'ne' || cursor === 'sw' || cursor === 'se' || cursor === 'move') {
+          sigCrop.canvas.style.cursor = cursor === 'move' ? 'grabbing' : 'nwse-resize';
+        } else if (cursor === 'n' || cursor === 's') {
+          sigCrop.canvas.style.cursor = 'ns-resize';
+        } else if (cursor === 'e' || cursor === 'w') {
+          sigCrop.canvas.style.cursor = 'ew-resize';
+        } else {
+          sigCrop.canvas.style.cursor = 'grab';
+        }
+      }
+
+      function sigCropCanvasMove(e) {
+        if (sigCrop.drag && sigCrop.dragStart) {
+          const dx = e.offsetX - sigCrop.dragStart.x;
+          const dy = e.offsetY - sigCrop.dragStart.y;
+          const b = sigCrop.dragBoxStart;
+          const cw = sigCrop.canvas.width, ch = sigCrop.canvas.height;
+          const minSize = 20;
+
+          if (sigCrop.drag === 'move') {
+            sigCrop.box.x = Math.max(0, Math.min(cw - b.w, b.x + dx));
+            sigCrop.box.y = Math.max(0, Math.min(ch - b.h, b.y + dy));
+          } else if (sigCrop.drag === 'se') {
+            sigCrop.box.w = Math.max(minSize, Math.min(cw - b.x, b.w + dx));
+            sigCrop.box.h = Math.max(minSize, Math.min(ch - b.y, b.h + dy));
+          } else if (sigCrop.drag === 'e') {
+            sigCrop.box.w = Math.max(minSize, Math.min(cw - b.x, b.w + dx));
+          } else if (sigCrop.drag === 's') {
+            sigCrop.box.h = Math.max(minSize, Math.min(ch - b.y, b.h + dy));
+          } else if (sigCrop.drag === 'nw') {
+            const newW = b.w - dx, newH = b.h - dy;
+            if (newW > minSize && newH > minSize) {
+              sigCrop.box.x = b.x + dx; sigCrop.box.y = b.y + dy;
+              sigCrop.box.w = newW; sigCrop.box.h = newH;
+            }
+          } else if (sigCrop.drag === 'n') {
+            const newH = b.h - dy;
+            if (newH > minSize) { sigCrop.box.y = b.y + dy; sigCrop.box.h = newH; }
+          } else if (sigCrop.drag === 'w') {
+            const newW = b.w - dx;
+            if (newW > minSize) { sigCrop.box.x = b.x + dx; sigCrop.box.w = newW; }
+          } else if (sigCrop.drag === 'ne') {
+            sigCrop.box.w = Math.max(minSize, Math.min(cw - b.x, b.w + dx));
+            const newH = b.h - dy;
+            if (newH > minSize) { sigCrop.box.y = b.y + dy; sigCrop.box.h = newH; }
+          } else if (sigCrop.drag === 'sw') {
+            const newW = b.w - dx;
+            if (newW > minSize) { sigCrop.box.x = b.x + dx; sigCrop.box.w = newW; }
+            sigCrop.box.h = Math.max(minSize, Math.min(ch - b.y, b.h + dy));
+          }
+          sigCropRender();
+        } else {
+          // Hover cursor
+          const c = getSigCropCursor(e);
+          const cursorMap = { move:'grab', nw:'nwse-resize', se:'nwse-resize', ne:'nesw-resize', sw:'nesw-resize', n:'ns-resize', s:'ns-resize', e:'ew-resize', w:'ew-resize', outside:'crosshair' };
+          sigCrop.canvas.style.cursor = cursorMap[c] || 'crosshair';
+        }
+      }
+
+      function sigCropCanvasUp() {
+        sigCrop.drag = null;
+        sigCrop.dragStart = null;
+        sigCrop.canvas.style.cursor = 'grab';
+      }
+
+      function sigCropCanvasWheel(e) {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.08 : 0.08;
+        const newZoom = Math.max(sigCrop.minZoom, Math.min(sigCrop.maxZoom, sigCrop.zoom + delta));
+        // Zoom centered on mouse position
+        const mx = e.offsetX, my = e.offsetY;
+        const ratio = newZoom / sigCrop.zoom;
+        sigCrop.imgX = mx - (mx - sigCrop.imgX) * ratio;
+        sigCrop.imgY = my - (my - sigCrop.imgY) * ratio;
+        sigCrop.zoom = newZoom;
+
+        document.getElementById('sigZoomSlider').value = Math.round(newZoom * 100);
+        document.getElementById('sigZoomLabel').textContent = Math.round(newZoom * 100) + '%';
+        sigCropRender();
+      }
+
+      function sigCropZoom(newZoom) {
+        newZoom = Math.max(sigCrop.minZoom, Math.min(sigCrop.maxZoom, newZoom));
+        const cw = sigCrop.canvas.width, ch = sigCrop.canvas.height;
+        const cx = cw / 2, cy = ch / 2;
+        const ratio = newZoom / sigCrop.zoom;
+        sigCrop.imgX = cx - (cx - sigCrop.imgX) * ratio;
+        sigCrop.imgY = cy - (cy - sigCrop.imgY) * ratio;
+        sigCrop.zoom = newZoom;
+        document.getElementById('sigZoomLabel').textContent = Math.round(newZoom * 100) + '%';
+        sigCropRender();
+      }
+
+      function sigCropZoomStep(step) {
+        sigCropZoom(sigCrop.zoom + step);
+        document.getElementById('sigZoomSlider').value = Math.round(sigCrop.zoom * 100);
+      }
+
+      function sigCropSave() {
+        const { img, zoom, imgX, imgY, box } = sigCrop;
+        // Convert canvas coords to image coords
+        const sx = (box.x - imgX) / zoom;
+        const sy = (box.y - imgY) / zoom;
+        const sw = box.w / zoom;
+        const sh = box.h / zoom;
+
+        const outCanvas = document.createElement('canvas');
+        outCanvas.width = Math.round(sw);
+        outCanvas.height = Math.round(sh);
+        const outCtx = outCanvas.getContext('2d');
+        outCtx.drawImage(img, sx, sy, sw, sh, 0, 0, outCanvas.width, outCanvas.height);
+
+        const dataUrl = outCanvas.toDataURL('image/png');
+
+        // Process with existing signature pipeline (background removal + draw to target canvas)
+        const targetCanvas = document.getElementById(sigCrop.targetCanvasId);
+        if (targetCanvas) {
+          processSignatureFinal(dataUrl, sigCrop.targetCanvasId);
+        }
+        closeModal('sigCropModal');
+      }
+
+      function sigCropCancel() {
+        closeModal('sigCropModal');
+        sigCrop.drag = null;
+        sigCrop.dragStart = null;
+      }
+
+      function processSignatureFinal(dataUrl, canvasId) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+
+        const img = new Image();
+        img.onload = function() {
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = img.width;
+          tempCanvas.height = img.height;
+          const tempCtx = tempCanvas.getContext('2d');
+          tempCtx.drawImage(img, 0, 0);
+
+          const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+          const data = imgData.data;
+
+          let targetR = 0, targetG = 0, targetB = 0;
+          if (currentSignColor === '#000000') { targetR=0; targetG=0; targetB=0; }
+          else if (currentSignColor === '#333333') { targetR=51; targetG=51; targetB=51; }
+          else if (currentSignColor === '#00008B') { targetR=0; targetG=0; targetB=139; }
+          else if (currentSignColor === '#1E90FF') { targetR=30; targetG=144; targetB=255; }
+
+          let minB = 255, totalB = 0;
+          const brightnesses = new Uint8Array(data.length / 4);
+          for (let i = 0; i < data.length; i += 4) {
+            let b = Math.round((data[i] + data[i+1] + data[i+2]) / 3);
+            brightnesses[i/4] = b;
+            if (b < minB) minB = b;
+            totalB += b;
+          }
+          const avgB = totalB / (data.length / 4);
+          const threshold = minB + (avgB - minB) * 0.6;
+
+          for (let i = 0; i < data.length; i += 4) {
+            let b = brightnesses[i/4];
+            if (b >= threshold || data[i+3] < 50) {
+              data[i+3] = 0;
+            } else {
+              let alpha = Math.round(((threshold - b) / (threshold - minB)) * 255);
+              alpha = Math.max(0, Math.min(255, alpha));
+              data[i] = targetR; data[i+1] = targetG; data[i+2] = targetB;
+              data[i+3] = alpha;
+            }
+          }
+          tempCtx.putImageData(imgData, 0, 0);
+
+          // Auto-crop whitespace
+          let minX = tempCanvas.width, minY = tempCanvas.height, maxX = 0, maxY = 0;
+          for (let i = 0; i < data.length; i += 4) {
+            if (data[i+3] > 20) {
+              let x = (i / 4) % tempCanvas.width;
+              let y = Math.floor((i / 4) / tempCanvas.width);
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+            }
+          }
+
+          if (minX > maxX || minY > maxY) {
+            Swal.fire('Gagal', 'Tanda tangan tidak terdeteksi.', 'error');
+            return;
+          }
+
+          const cropW = maxX - minX, cropH = maxY - minY;
+          const cropped = document.createElement('canvas');
+          cropped.width = cropW; cropped.height = cropH;
+          cropped.getContext('2d').drawImage(tempCanvas, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+
+          const dpr = window.devicePixelRatio || 1;
+          const lw = canvas.width / dpr, lh = canvas.height / dpr;
+          ctx.clearRect(0, 0, lw, lh);
+          const padding = 20;
+          const scale = Math.min((lw - padding) / cropW, (lh - padding) / cropH);
+          const dw = cropW * scale, dh = cropH * scale;
+          ctx.drawImage(cropped, 0, 0, cropW, cropH, (lw - dw) / 2, (lh - dh) / 2, dw, dh);
+        };
+        img.src = dataUrl;
       }
 
       let canvasListAuditee, canvasRegisterSign;
