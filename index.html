@@ -831,7 +831,7 @@
     <div style="font-weight: bold; font-size: 1.2rem;"><i class="fa-solid fa-clipboard-check"></i> Matrika Audit</div>
     <div style="display: flex; gap: 15px; align-items: center;">
       <span id="navAuditorName">Auditor</span>
-      <button class="btn btn-outline" style="color: white; border-color: rgba(255,255,255,0.3);" onclick="showModal('modalRegisterSignature')"><i class="fa-solid fa-signature"></i> Ganti TTD</button>
+      <button class="btn btn-outline" style="color: white; border-color: rgba(255,255,255,0.3);" onclick="openRegisterSignature()"><i class="fa-solid fa-signature"></i> Ganti TTD</button>
       <button class="btn btn-outline" style="color: white; border-color: rgba(255,255,255,0.3);" onclick="logout()"><i
           class="fa-solid fa-right-from-bracket"></i> Keluar</button>
     </div>
@@ -1025,45 +1025,106 @@
     </div>
 
     <!-- MODAL REGISTER SIGNATURE -->
+  <!-- MODAL: REGISTER SIGNATURE -->
   <div id="modalRegisterSignature" class="modal-overlay hidden">
-    <div class="modal-content">
-      <h3>Daftarkan Tanda Tangan Anda</h3>
-      <p style="font-size: 14px; color: #666; margin-bottom: 15px;">Syarat sah TTE (UU ITE): Buat tanda tangan digital
-        Anda dan lindungi dengan <b>6 digit PIN</b>.</p>
-        
-      <div class="sign-toolbar" style="display: flex; gap: 10px; align-items: center; background: #f8fafc; padding: 10px; border-radius: 8px 8px 0 0; border: 1px solid var(--border); border-bottom: none;">
-        <div style="display: flex; gap: 6px;">
+    <div class="modal-content" style="max-width: 560px;">
+      
+      <!-- Header -->
+      <div style="text-align: center; margin-bottom: 20px;">
+        <div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #2563eb); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+          <i class="fa-solid fa-pen-nib" style="color: white; font-size: 24px;"></i>
+        </div>
+        <h3 style="margin: 0 0 4px 0; font-size: 18px;">Daftarkan Tanda Tangan Digital</h3>
+        <p style="margin: 0; font-size: 13px; color: var(--text-light);">Buat tanda tangan Anda dan lindungi dengan PIN</p>
+      </div>
+
+      <!-- Status TTE (filled from DB) -->
+      <div id="sigStatusCard" style="display: none; background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 1px solid #bbf7d0; border-radius: 10px; padding: 14px 16px; margin-bottom: 18px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+          <i class="fa-solid fa-circle-check" style="color: #16a34a; font-size: 18px;"></i>
+          <span style="font-weight: 600; color: #166534; font-size: 14px;">TTE Anda Sudah Terdaftar</span>
+        </div>
+        <div style="font-size: 12px; color: #166534; line-height: 1.6;">
+          <div><i class="fa-regular fa-calendar" style="width: 16px;"></i> Didaftarkan: <span id="sigCreatedAt">-</span></div>
+          <div><i class="fa-solid fa-rotate" style="width: 16px;"></i> Diperbarui: <span id="sigUpdatedAt">-</span></div>
+        </div>
+      </div>
+
+      <!-- UU ITE Info -->
+      <details style="margin-bottom: 18px; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;">
+        <summary style="padding: 12px 16px; background: #f8fafc; cursor: pointer; font-weight: 600; font-size: 13px; color: var(--text-dark); list-style: none; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-scale-balanced" style="color: var(--secondary);"></i>
+          <span>Ketentuan Hukum TTE (UU ITE Pasal 11)</span>
+          <i class="fa-solid fa-chevron-down" style="margin-left: auto; font-size: 10px; color: #94a3b8;"></i>
+        </summary>
+        <div style="padding: 14px 16px; font-size: 12px; line-height: 1.7; color: #475569; border-top: 1px solid #e2e8f0;">
+          <p style="margin: 0 0 8px 0;">Tanda Tangan Elektronik (TTE) memiliki <b>kekuatan hukum sah</b> menurut Pasal 11 UU No. 11/2008 tentang Informasi dan Transaksi Elektronik jika memenuhi:</p>
+          <ul style="margin: 0; padding-left: 18px;">
+            <li>Data pembuatan hanya diketahui <b>penandatangan</b></li>
+            <li>Sistem berada di bawah <b>kendali penuh</b> penandatangan</li>
+            <li>Perubahan TTE dapat <b>terdeteksi</b></li>
+            <li>Perubahan informasi terkait dapat <b>terdeteksi</b></li>
+            <li>Dapat mengidentifikasi <b>keaslian & identitas</b> penandatangan</li>
+            <li>Dapat membuktikan <b>keutuhan data</b></li>
+          </ul>
+          <p style="margin: 10px 0 0 0; padding: 8px 10px; background: #eff6ff; border-radius: 6px; font-size: 11px; color: #1e40af;">
+            <i class="fa-solid fa-shield-halved"></i> PIN Anda di-hash dengan <b>SHA-256</b> — tidak ada yang mengetahui PIN asli Anda, termasuk sistem.
+          </p>
+        </div>
+      </details>
+
+      <!-- Canvas Toolbar -->
+      <div class="sign-toolbar" style="display: flex; gap: 8px; align-items: center; background: #f8fafc; padding: 10px 12px; border-radius: 10px 10px 0 0; border: 1px solid #e2e8f0; border-bottom: none;">
+        <div style="display: flex; gap: 5px;">
           <div class="color-btn active" style="width: 22px; height: 22px; border-radius: 50%; background: #000000; cursor: pointer; border: 2px solid white; box-shadow: 0 0 0 1px #000;" onclick="setSignColor(this, '#000000')"></div>
           <div class="color-btn" style="width: 22px; height: 22px; border-radius: 50%; background: #333333; cursor: pointer; border: 2px solid transparent;" onclick="setSignColor(this, '#333333')"></div>
           <div class="color-btn" style="width: 22px; height: 22px; border-radius: 50%; background: #00008B; cursor: pointer; border: 2px solid transparent;" onclick="setSignColor(this, '#00008B')"></div>
           <div class="color-btn" style="width: 22px; height: 22px; border-radius: 50%; background: #1E90FF; cursor: pointer; border: 2px solid transparent;" onclick="setSignColor(this, '#1E90FF')"></div>
         </div>
-        <div style="width: 1px; height: 20px; background: #cbd5e1; margin: 0 5px;"></div>
-        <input type="range" min="1" max="6" value="3" style="width: 70px; cursor: pointer;" oninput="setSignThickness(this.value)">
+        <div style="width: 1px; height: 20px; background: #cbd5e1; margin: 0 4px;"></div>
+        <input type="range" min="1" max="6" value="3" style="width: 60px; cursor: pointer;" oninput="setSignThickness(this.value)">
         <div style="flex-grow: 1;"></div>
-        <label style="cursor: pointer; color: var(--secondary); margin: 0; font-size: 16px;" title="Upload Gambar TTD">
+        <label style="cursor: pointer; color: var(--secondary); margin: 0; font-size: 15px;" title="Upload Gambar TTD">
           <i class="fa-solid fa-image"></i>
           <input type="file" accept="image/*" style="display:none;" onchange="handleSignUpload(event, 'canvasRegisterSign')">
         </label>
-        <div style="cursor: pointer; color: #ef4444; margin-left: 12px; font-size: 16px;" title="Hapus Canvas" onclick="clearCanvas('canvasRegisterSign')">
+        <div style="cursor: pointer; color: #ef4444; margin-left: 8px; font-size: 15px;" title="Hapus Canvas" onclick="clearCanvas('canvasRegisterSign')">
           <i class="fa-solid fa-trash-can"></i>
         </div>
       </div>
-      <div style="background: #fff; border: 1px solid var(--border); border-radius: 0 0 8px 8px; margin-bottom: 25px; overflow: hidden; position: relative;">
+      <!-- Canvas -->
+      <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 0 0 10px 10px; margin-bottom: 20px; overflow: hidden; position: relative;">
         <canvas id="canvasRegisterSign" class="sign-canvas" width="400" height="150"
           style="width:100%; height: 150px; border:none; margin:0; display: block;"></canvas>
       </div>
 
-      <div style="display: flex; gap: 15px; margin-bottom: 25px; justify-content: center;">
-        <input type="password" id="regPin" placeholder="PIN" maxlength="6" class="form-group"
-          style="text-align:center; width: 140px; font-size:24px; letter-spacing:8px; padding: 12px; margin-bottom: 0;">
-        <input type="password" id="regPinConfirm" placeholder="Ulangi" maxlength="6" class="form-group"
-          style="text-align:center; width: 140px; font-size:24px; letter-spacing:8px; padding: 12px; margin-bottom: 0;">
+      <!-- PIN Section -->
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+          <i class="fa-solid fa-lock" style="color: var(--secondary); font-size: 14px;"></i>
+          <span style="font-weight: 600; font-size: 13px;">PIN Keamanan 6 Digit</span>
+        </div>
+        <p style="font-size: 12px; color: #94a3b8; margin: 0 0 14px 0;">PIN digunakan untuk memverifikasi identitas Anda saat menandatangani dokumen.</p>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+          <div style="text-align: center;">
+            <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 6px; font-weight: 500;">PIN</label>
+            <input type="password" id="regPin" placeholder="······" maxlength="6"
+              style="width: 120px; text-align:center; font-size: 22px; letter-spacing: 8px; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; background: white; outline: none; transition: border-color 0.2s; font-weight: 600;"
+              onfocus="this.style.borderColor='var(--secondary)'" onblur="this.style.borderColor='#e2e8f0'">
+          </div>
+          <div style="text-align: center;">
+            <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 6px; font-weight: 500;">ULANGI PIN</label>
+            <input type="password" id="regPinConfirm" placeholder="······" maxlength="6"
+              style="width: 120px; text-align:center; font-size: 22px; letter-spacing: 8px; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; background: white; outline: none; transition: border-color 0.2s; font-weight: 600;"
+              onfocus="this.style.borderColor='var(--secondary)'" onblur="this.style.borderColor='#e2e8f0'">
+          </div>
+        </div>
       </div>
 
+      <!-- Actions -->
       <div style="display: flex; justify-content: flex-end; gap: 10px;">
         <button class="btn btn-outline" onclick="closeModal('modalRegisterSignature')">Batal</button>
-        <button class="btn btn-primary" onclick="saveRegisteredSignature()">Simpan & Buat PIN</button>
+        <button class="btn btn-primary" onclick="saveRegisteredSignature()"><i class="fa-solid fa-floppy-disk"></i> Simpan & Buat PIN</button>
       </div>
     </div>
   </div>
@@ -1246,14 +1307,15 @@
             </div>
 
           </div>
-        </div>
 
-        <!-- LAMPIRAN SECTION -->
-        <div id="lampiranArea" class="hidden" style="margin-top: 20px;">
-          <div style="border: 2px solid black; padding: 15px; background: white;">
-            <h3 style="text-align: center; font-weight: bold; margin-bottom: 10px; font-size: 14px; text-decoration: underline;">LAMPIRAN</h3>
-            <div id="lampiranGrid" class="lampiran-grid"></div>
+          <!-- LAMPIRAN SECTION (inside previewArea for print) -->
+          <div id="lampiranArea" class="hidden" style="margin-top: 20px;">
+            <div style="border: 2px solid black; padding: 15px; background: white;">
+              <h3 style="text-align: center; font-weight: bold; margin-bottom: 10px; font-size: 14px; text-decoration: underline;">LAMPIRAN</h3>
+              <div id="lampiranGrid" class="lampiran-grid"></div>
+            </div>
           </div>
+
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
@@ -1393,6 +1455,25 @@
       function showModal(modalId) { document.getElementById(modalId).classList.remove('hidden'); }
       function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
 
+      function openRegisterSignature() {
+        const statusCard = document.getElementById('sigStatusCard');
+        statusCard.style.display = 'none';
+        showModal('modalRegisterSignature');
+        
+        if (currentUser.nik && currentUser.nik !== 'guest') {
+          fetch(GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'getSignatureInfo', nik: currentUser.nik })
+          }).then(r => r.json()).then(res => {
+            if (res.success && res.exists) {
+              statusCard.style.display = 'block';
+              document.getElementById('sigCreatedAt').textContent = res.createdAt || '-';
+              document.getElementById('sigUpdatedAt').textContent = res.updatedAt || '-';
+            }
+          }).catch(() => {});
+        }
+      }
+
       // 1. LOGIN LOGIC
       function handleLogin(e) {
         e.preventDefault();
@@ -1421,7 +1502,7 @@
               }
 
               changeState('stateMenu');
-              if (!localStorage.getItem('signature_' + currentUser.nik)) showModal('modalRegisterSignature');
+              if (!localStorage.getItem('signature_' + currentUser.nik)) openRegisterSignature();
             } else {
               Swal.fire('Gagal', res.message, 'error');
             }
@@ -1434,7 +1515,7 @@
             sessionStorage.setItem('matrika_user', JSON.stringify(currentUser));
             document.getElementById('navAuditorName').innerText = currentUser.nama;
             changeState('stateMenu');
-            if (!localStorage.getItem('signature_' + currentUser.nik)) showModal('modalRegisterSignature');
+            if (!localStorage.getItem('signature_' + currentUser.nik)) openRegisterSignature();
           })
           .finally(() => {
             btn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Masuk';
@@ -2825,10 +2906,10 @@
              Swal.fire('Info', 'Sebagai Guest, TTD Auditor akan diisi dummy.', 'info');
              submitListSign(id, 'auditor', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=');
              return;
-          } else if (!localStorage.getItem('signature_' + currentUser.nik)) {
-             Swal.fire('Info', 'Anda belum mendaftarkan tanda tangan. Silakan buat terlebih dahulu.', 'info');
-             showModal('modalRegisterSignature');
-             return;
+           } else if (!localStorage.getItem('signature_' + currentUser.nik)) {
+              Swal.fire('Info', 'Anda belum mendaftarkan tanda tangan. Silakan buat terlebih dahulu.', 'info');
+              openRegisterSignature();
+              return;
           }
           document.getElementById('listSignTitle').innerText = 'Tanda Tangan Auditor';
           document.getElementById('listSignAuditorArea').classList.remove('hidden');

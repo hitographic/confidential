@@ -25,7 +25,7 @@ function getSheet(sheetName) {
        sheet.appendRow(['ID', 'Timestamp', 'Auditor', 'Auditee', 'Kategori Menu', 'Data Checklist (JSON)', 'Status', 'Tanda Tangan Auditor', 'Tanda Tangan Auditee', 'Hash_Integritas']);
     } else if (sheetName === 'signatures_db') {
        sheet = ss.insertSheet(sheetName);
-       sheet.appendRow(['NIK', 'TandaTanganBase64', 'PIN_Hash', 'Created_At']);
+       sheet.appendRow(['NIK', 'TandaTanganBase64', 'PIN_Hash', 'Created_At', 'Updated_At']);
     } else if (sheetName === 'audit_trail') {
        sheet = ss.insertSheet(sheetName);
        sheet.appendRow(['Timestamp', 'Action', 'NIK', 'IP_Address', 'Target_ID', 'Data_Hash']);
@@ -40,6 +40,15 @@ function getSheet(sheetName) {
     if (headers.length < 12 || !headers[11] || String(headers[11]).trim() !== 'Lampiran (JSON)') {
       if (headers.length < 12) {
         sheet.getRange(1, 12).setValue('Lampiran (JSON)');
+      }
+    }
+  }
+  // Pastikan kolom Updated_At (E) ada untuk sheet signatures_db
+  if (sheetName === 'signatures_db') {
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    if (headers.length < 5 || !headers[4] || String(headers[4]).trim() !== 'Updated_At') {
+      if (headers.length < 5) {
+        sheet.getRange(1, 5).setValue('Updated_At');
       }
     }
   }
@@ -138,11 +147,12 @@ function handleRegisterSignature(nik, signatureData, pin) {
       if (String(data[i][0]).trim() === String(nik).trim()) {
         sheet.getRange(i + 1, 2).setValue(finalSignatureUrl);
         sheet.getRange(i + 1, 3).setValue(pinHash);
-        sheet.getRange(i + 1, 4).setValue(new Date());
+        sheet.getRange(i + 1, 4).setValue(data[i][3] || new Date());
+        sheet.getRange(i + 1, 5).setValue(new Date());
         return { success: true, message: "Tanda tangan berhasil diperbarui!" };
       }
     }
-    sheet.appendRow([nik, finalSignatureUrl, pinHash, new Date()]);
+    sheet.appendRow([nik, finalSignatureUrl, pinHash, new Date(), new Date()]);
     return { success: true, message: "Tanda tangan berhasil didaftarkan!" };
   } catch (e) {
     return { success: false, message: e.message };
@@ -465,6 +475,27 @@ function handleGetDetail(id) {
   }
 }
 
+function handleGetSignatureInfo(nik) {
+  try {
+    const sheet = getSheet("signatures_db");
+    const data = sheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]).trim() === String(nik).trim()) {
+        return {
+          success: true,
+          exists: true,
+          signatureUrl: data[i][1] || '',
+          createdAt: data[i][3] ? new Date(data[i][3]).toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '-',
+          updatedAt: data[i][4] ? new Date(data[i][4]).toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '-'
+        };
+      }
+    }
+    return { success: true, exists: false };
+  } catch(e) {
+    return { success: false, message: e.message };
+  }
+}
+
 // --- POST Entry Point ---
 function doPost(e) {
   try {
@@ -510,6 +541,9 @@ function doPost(e) {
         break;
       case "deletePhoto":
         result = handleDeletePhoto(postData.fileId);
+        break;
+      case "getSignatureInfo":
+        result = handleGetSignatureInfo(postData.nik);
         break;
       default:
         result = { success: false, message: "Action tidak dikenal." };
