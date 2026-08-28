@@ -7,7 +7,8 @@
   <title>Confidential</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -435,19 +436,23 @@
 
     #previewArea {
       background: white;
-      padding: 20px;
       color: black;
       font-family: 'Times New Roman', Times, serif;
       font-size: 13px;
       width: 794px;
-      min-height: 1123px;
+      height: 1123px;
+      max-height: 1123px;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
       box-sizing: border-box;
       margin: 0 auto;
+      padding: 20px;
     }
 
     #previewArea * { font-family: 'Times New Roman', Times, serif !important; }
+
+    #previewTableBody tr:last-child td { border-bottom: none !important; }
 
     .check-box {
       display: inline-block;
@@ -515,7 +520,7 @@
       #modalPreview { position: absolute; top: 0; left: 0; width: 100vw !important; background: none; display: flex !important; padding: 0; margin: 0; align-items: flex-start !important; justify-content: center !important; opacity: 1 !important; visibility: visible !important; overflow: visible !important; }
       .modal-content { box-shadow: none; padding: 0; width: 100vw !important; max-width: 100%; max-height: none; overflow: visible !important; transform: none !important; display: block !important; }
       .preview-wrapper { padding: 0 !important; margin: 0 !important; border: none !important; width: 100% !important; max-height: none !important; overflow: visible !important; display: block !important; }
-      #previewArea { width: 100% !important; min-height: 1123px !important; margin: 0 !important; padding: 15mm !important; box-sizing: border-box !important; display: flex !important; flex-direction: column; overflow: visible !important; page-break-after: always !important; page-break-inside: avoid !important; }
+      #previewArea { width: 100% !important; height: 1123px !important; max-height: 1123px !important; margin: 0 !important; padding: 15mm !important; box-sizing: border-box !important; display: flex !important; flex-direction: column; overflow: hidden !important; page-break-after: always !important; page-break-inside: avoid !important; }
       #previewArea td, #previewArea th { padding: 4px !important; font-size: 11px; }
       .btn, div[onclick], .modal-content>div:first-child { display: none !important; }
       .sign-canvas { border: none !important; background: transparent; }
@@ -3292,16 +3297,15 @@
       }
 
       function exportItemPDF(id) {
-        Swal.fire({ title: 'Menyiapkan PDF...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        Swal.fire({ title: 'Memuat data...', text: 'Mengambil data dari server', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         fetch(GAS_URL, {
           method: 'POST', body: JSON.stringify({ action: 'getDetail', id: id })
         }).then(res => res.json()).then(res => {
-          if (res.success) {
-            Swal.close();
-            const d = res.data;
+          if (!res.success) { Swal.fire('Gagal', res.message, 'error'); return; }
+          const d = res.data;
 
-            // Set Header Info
-            const cbHtml = `
+          // Set Header Info
+          document.getElementById('previewCheckboxes').innerHTML = `
                 <table style="width:100%; border:none; font-weight:bold; font-size: 14px;">
                     <tr>
                         <td style="border:none; padding:2px;"><div class="check-box">${d.kategori === 'Halal' ? 'V' : '&nbsp;'}</div> Halal</td>
@@ -3320,93 +3324,157 @@
                     </tr>
                 </table>
             `;
-            document.getElementById('previewCheckboxes').innerHTML = cbHtml;
-            document.getElementById('prevDept').innerText = d.departemen || "-";
+          document.getElementById('prevDept').innerText = d.departemen || "-";
+          const dt = new Date(d.tanggal || new Date());
+          const months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+          document.getElementById('prevDate').innerText = `${dt.getDate()} ${months[dt.getMonth()]} ${dt.getFullYear()}`;
 
-            const dt = new Date(d.tanggal || new Date());
-            const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-            document.getElementById('prevDate').innerText = `${dt.getDate()} ${months[dt.getMonth()]} ${dt.getFullYear()}`;
+          // Table Body
+          const tbody = document.getElementById('previewTableBody');
+          tbody.innerHTML = '';
+          let counterExport = 1;
+          d.checklistData.forEach(row => {
+            if (row.type == 1 || row.type == 2 || row.type == 3) return;
+            if (!row.hasilPengamatan || row.hasilPengamatan.trim() === '') return;
+            const tr = document.createElement('tr');
+            tr.style.height = '1px';
+            tr.innerHTML = `
+                <td style="text-align:center; font-weight:bold;">${counterExport++}</td>
+                <td style="padding-left: 10px;">${row.hasilPengamatan || ''}</td>
+                <td style="text-align:center;">${row.kriteria || '-'}</td>
+                <td style="text-align:center;">${row.kategoriVal || '-'}</td>
+            `;
+            tbody.appendChild(tr);
+          });
 
-            // Table Body
-            const tbody = document.getElementById('previewTableBody');
-            tbody.innerHTML = '';
-            let counterExport = 1;
-            d.checklistData.forEach(row => {
-              const tr = document.createElement('tr');
-              tr.style.height = '1px';
-              if (row.type == 1 || row.type == 2 || row.type == 3) {
-                return; // Jangan tampilkan tipe heading di PDF/Preview
+          // Remove old filler row if exists
+          const existingFiller = tbody.querySelector('.pdf-filler');
+          if (existingFiller) existingFiller.remove();
+          // Add filler to stretch table
+          const fillerTr = document.createElement('tr');
+          fillerTr.className = 'pdf-filler';
+          fillerTr.innerHTML = '<td colspan="4" style="height:100%; padding:0; border:none;"></td>';
+          tbody.appendChild(fillerTr);
+
+          document.getElementById('prevAuditorName').innerText = d.auditorName || currentUser.nama;
+          document.getElementById('prevAuditeeName').innerText = d.auditeeName;
+          document.getElementById('prevHash').innerText = d.hashIntegritas || "Belum disubmit";
+
+          // Render lampiran
+          renderLampiran(d.lampiran || []);
+
+          // Load signature images first
+          const auditorImg = document.getElementById('auditorSavedSignImg');
+          const auditeeImg = document.getElementById('auditeeSavedSignImg');
+          let sigsToLoad = 0;
+          function sigLoaded() { sigsToLoad--; if (sigsToLoad <= 0) generatePDF(); }
+          if (d.auditorSignature) { sigsToLoad++; auditorImg.onload = sigLoaded; auditorImg.onerror = sigLoaded; auditorImg.src = d.auditorSignature; }
+          else { auditorImg.src = ''; }
+          if (d.auditeeSignature) { sigsToLoad++; auditeeImg.onload = sigLoaded; auditeeImg.onerror = sigLoaded; auditeeImg.src = d.auditeeSignature; }
+          else { auditeeImg.src = ''; }
+
+          if (sigsToLoad === 0) generatePDF();
+
+          async function generatePDF() {
+            const lampiranArea = document.getElementById('lampiranArea');
+            const lampiranWasHidden = lampiranArea.classList.contains('hidden');
+
+            // Pre-fetch all lampiran images as data URLs (CORS-safe)
+            const lampiranItems = d.lampiran || [];
+            if (lampiranItems.length > 0) {
+              Swal.update({ title: 'Mengunduh foto lampiran...', text: `0/${lampiranItems.length} foto` });
+              for (let i = 0; i < lampiranItems.length; i++) {
+                try {
+                  const resp = await fetch(lampiranItems[i].url);
+                  const blob = await resp.blob();
+                  const dataUrl = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                  });
+                  const imgs = document.querySelectorAll('#lampiranGrid .lampiran-item img');
+                  if (imgs[i]) imgs[i].src = dataUrl;
+                } catch(e) { console.warn('Foto gagal dimuat:', e); }
+                Swal.update({ title: 'Mengunduh foto lampiran...', text: `${i+1}/${lampiranItems.length} foto` });
               }
-              if (!row.hasilPengamatan || row.hasilPengamatan.trim() === '') {
-                return; // Jangan tampilkan baris yang tidak diisi (kosong)
-              }
+            }
 
-              tr.innerHTML = `
-                  <td style="text-align:center; font-weight:bold;">${counterExport++}</td>
-                  <td style="padding-left: 10px;">${row.hasilPengamatan || ''}</td>
-                  <td style="text-align:center;">${row.kriteria || '-'}</td>
-                  <td style="text-align:center;">${row.kategoriVal || '-'}</td>
-              `;
-              tbody.appendChild(tr);
+            // Make previewArea visible offscreen for capture
+            const previewArea = document.getElementById('previewArea');
+            const origPreviewStyle = previewArea.style.cssText;
+            previewArea.style.display = 'block';
+            previewArea.style.position = 'absolute';
+            previewArea.style.left = '-9999px';
+            previewArea.style.top = '0';
+            previewArea.style.width = '794px';
+            previewArea.style.height = '1123px';
+            previewArea.style.overflow = 'hidden';
+            previewArea.style.background = 'white';
+            previewArea.style.margin = '0';
+
+            let origLampiranStyle = '';
+            let origLampiranPageStyle = '';
+            if (!lampiranWasHidden && lampiranItems.length > 0) {
+              lampiranArea.style.display = 'block';
+              origLampiranStyle = lampiranArea.style.cssText;
+              lampiranArea.style.position = 'absolute';
+              lampiranArea.style.left = '-9999px';
+              lampiranArea.style.top = '0';
+              const lp = document.getElementById('lampiranPage');
+              origLampiranPageStyle = lp.style.cssText;
+              lp.style.width = '794px';
+              lp.style.minHeight = '1123px';
+              lp.style.height = 'auto';
+              lp.style.border = 'none';
+              lp.style.margin = '0';
+            }
+
+            Swal.update({ title: 'Membuat PDF...', text: 'Halaman 1: Pengamatan Internal Audit' });
+            await new Promise(r => setTimeout(r, 200));
+
+            const canvas1 = await html2canvas(previewArea, {
+              scale: 2, useCORS: true, allowTaint: true,
+              backgroundColor: '#ffffff', logging: false,
+              width: 794, height: 1123, windowWidth: 794, windowHeight: 1123
             });
 
-            const fillerTr = document.createElement('tr');
-            fillerTr.style.height = '100%';
-            fillerTr.innerHTML = '<td></td><td></td><td></td><td></td>';
-            tbody.appendChild(fillerTr);
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfW = 210;
+            const pdfH = 297;
+            const imgH1 = (canvas1.height * pdfW) / canvas1.width;
+            pdf.addImage(canvas1.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfW, imgH1);
 
-            document.getElementById('prevAuditorName').innerText = d.auditorName || currentUser.nama;
-            document.getElementById('prevAuditeeName').innerText = d.auditeeName;
+            if (!lampiranWasHidden && lampiranItems.length > 0) {
+              Swal.update({ title: 'Membuat PDF...', text: 'Halaman 2: Lampiran' });
+              await new Promise(r => setTimeout(r, 100));
 
-            // Set Signatures & Wait for Load
-            document.getElementById('prevHash').innerText = d.hashIntegritas || "Belum disubmit";
+              const lp = document.getElementById('lampiranPage');
+              const canvas2 = await html2canvas(lp, {
+                scale: 2, useCORS: true, allowTaint: true,
+                backgroundColor: '#ffffff', logging: false,
+                width: 794, windowWidth: 794
+              });
 
-            // Render lampiran
-            renderLampiran(d.lampiran || []);
-
-            function triggerPrint() {
-              const originalTitle = document.title;
-              document.title = `Audit_${d.auditeeName}_${d.kategori}`;
-              setTimeout(() => {
-                window.print();
-                document.title = originalTitle;
-              }, 300);
+              pdf.addPage();
+              const imgH2 = (canvas2.height * pdfW) / canvas2.width;
+              pdf.addImage(canvas2.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfW, imgH2);
             }
 
-            let imagesToLoad = 0;
-            const auditorImg = document.getElementById('auditorSavedSignImg');
-            const auditeeImg = document.getElementById('auditeeSavedSignImg');
-
-            function imgLoaded() {
-              imagesToLoad--;
-              if (imagesToLoad <= 0) triggerPrint();
+            // Restore elements
+            previewArea.style.cssText = origPreviewStyle;
+            if (!lampiranWasHidden) {
+              lampiranArea.style.cssText = origLampiranStyle;
+              const lp = document.getElementById('lampiranPage');
+              if (lp) lp.style.cssText = origLampiranPageStyle;
             }
 
-            if (d.auditorSignature) {
-              imagesToLoad++;
-              auditorImg.onload = imgLoaded;
-              auditorImg.onerror = imgLoaded;
-              auditorImg.src = d.auditorSignature;
-            } else {
-              auditorImg.src = '';
-            }
-
-            if (d.auditeeSignature) {
-              imagesToLoad++;
-              auditeeImg.onload = imgLoaded;
-              auditeeImg.onerror = imgLoaded;
-              auditeeImg.src = d.auditeeSignature;
-            } else {
-              auditeeImg.src = '';
-            }
-
-            if (imagesToLoad === 0) {
-              triggerPrint();
-            }
-
-          } else {
-            Swal.fire('Gagal', res.message, 'error');
+            const cleanName = (d.auditeeName || 'Audit').replace(/[^a-zA-Z0-9]/g, '_');
+            pdf.save(`Audit_${cleanName}_${d.kategori}.pdf`);
+            Swal.fire({ icon: 'success', title: 'PDF berhasil didownload!', timer: 1500, showConfirmButton: false });
           }
+
         }).catch(err => {
           Swal.fire('Error', 'Gagal memuat data PDF.', 'error');
         });
