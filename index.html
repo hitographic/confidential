@@ -511,6 +511,25 @@
         display: none !important;
       }
 
+      #lampiranArea {
+        display: block !important;
+        page-break-before: always;
+        margin-top: 0 !important;
+      }
+
+      .lampiran-grid {
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 10px !important;
+      }
+
+      .lampiran-item img {
+        width: 100% !important;
+        height: auto !important;
+        aspect-ratio: 1 !important;
+        object-fit: cover !important;
+      }
+
       .sign-canvas {
         border: none !important;
         background: transparent;
@@ -520,6 +539,156 @@
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
       }
+    }
+
+    /* --- PHOTO UPLOAD STYLES --- */
+    .photo-upload-area {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .photo-thumb {
+      width: 64px;
+      height: 64px;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      border: 2px solid rgba(0,0,0,0.1);
+      cursor: pointer;
+    }
+
+    .photo-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .photo-thumb .photo-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .photo-thumb:hover .photo-overlay {
+      opacity: 1;
+    }
+
+    .photo-overlay i {
+      color: white;
+      font-size: 12px;
+      padding: 3px;
+      cursor: pointer;
+    }
+
+    .photo-add-btn {
+      width: 64px;
+      height: 64px;
+      border-radius: 8px;
+      border: 2px dashed var(--secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: var(--secondary);
+      font-size: 20px;
+      background: rgba(59, 130, 246, 0.05);
+    }
+
+    .photo-add-btn:hover {
+      background: rgba(59, 130, 246, 0.15);
+      transform: scale(1.05);
+    }
+
+    .photo-required-badge {
+      display: inline-block;
+      background: var(--accent);
+      color: white;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    /* Crop Modal */
+    #cropModal .modal-content {
+      max-width: 500px;
+    }
+
+    .crop-container {
+      position: relative;
+      width: 100%;
+      max-height: 400px;
+      overflow: hidden;
+      background: #000;
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+
+    .crop-container canvas {
+      display: block;
+      width: 100%;
+      max-height: 400px;
+      object-fit: contain;
+    }
+
+    /* --- LAMPIRAN STYLES (PDF) --- */
+    #lampiranArea {
+      page-break-before: always;
+      margin-top: 20px;
+    }
+
+    .lampiran-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      padding: 10px 0;
+    }
+
+    .lampiran-item {
+      text-align: center;
+    }
+
+    .lampiran-item img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    .lampiran-item .lampiran-caption {
+      font-size: 11px;
+      margin-top: 4px;
+      font-style: italic;
+      color: #333;
+    }
+
+    /* Photo caption input */
+    .photo-caption-input {
+      width: 100%;
+      padding: 4px 6px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    .photo-caption-input:focus {
+      border-color: var(--secondary);
+      outline: none;
     }
 
     /* Responsive tweaks */
@@ -665,11 +834,12 @@
           <thead>
             <tr>
               <th width="5%">No</th>
-              <th width="40%">Parameter / dokumen</th>
-              <th width="10%">Kriteria SJPH no.</th>
-              <th width="15%">Kesesuaian</th>
-              <th width="15%">Kategori</th>
+              <th width="35%">Parameter / dokumen</th>
+              <th width="8%">Kriteria SJPH no.</th>
+              <th width="12%">Kesesuaian</th>
+              <th width="12%">Kategori</th>
               <th width="15%">Keterangan</th>
+              <th width="13%">Foto</th>
             </tr>
           </thead>
           <tbody id="checklistBody">
@@ -795,6 +965,21 @@
       <div style="display: flex; justify-content: flex-end; gap: 10px;">
         <button class="btn btn-outline" onclick="closeModal('modalRegisterSignature')">Batal</button>
         <button class="btn btn-primary" onclick="saveRegisteredSignature()">Simpan & Buat PIN</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CROP FOTO 1:1 -->
+  <div id="cropModal" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width: 500px;">
+      <h3 style="margin-bottom: 15px;">Potong Foto (1:1)</h3>
+      <div class="crop-container">
+        <canvas id="cropCanvas"></canvas>
+      </div>
+      <input type="text" id="cropCaption" class="form-group" placeholder="Keterangan foto (opsional)..." style="width: 100%; margin-bottom: 15px;">
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn btn-outline" onclick="cancelCrop()">Batal</button>
+        <button class="btn btn-primary" onclick="confirmCrop()"><i class="fa-solid fa-check"></i> Simpan Foto</button>
       </div>
     </div>
   </div>
@@ -943,6 +1128,14 @@
           </div>
         </div>
 
+        <!-- LAMPIRAN SECTION -->
+        <div id="lampiranArea" class="hidden" style="margin-top: 20px;">
+          <div style="border: 2px solid black; padding: 15px; background: white;">
+            <h3 style="text-align: center; font-weight: bold; margin-bottom: 10px; font-size: 14px; text-decoration: underline;">LAMPIRAN</h3>
+            <div id="lampiranGrid" class="lampiran-grid"></div>
+          </div>
+        </div>
+
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
           <button class="btn btn-outline" onclick="closeModal('modalPreview')">Tutup</button>
           <button class="btn btn-primary" id="btnSimpanPreview" onclick="saveData('Draft')"><i class="fa-solid fa-save"></i> Simpan Data</button>
@@ -966,6 +1159,9 @@
       let currentQuestions = [];
       let listData = []; // Cache list pengamatan
       let currentEditId = null; // Menyimpan ID saat sedang edit/update
+      let formPhotos = {}; // { index: [{ id, url, fileId, caption }] }
+      let currentCropIndex = null;
+      let currentCropData = null;
 
       function saveSessionState() {
         sessionStorage.setItem('matrika_state', JSON.stringify({
@@ -1250,6 +1446,7 @@
       function showNewDataModal() {
         sessionStorage.removeItem('matrika_autosave');
         currentEditId = null;
+        formPhotos = {};
         
         const deptSelect = document.getElementById('inputDepartemen');
         deptSelect.innerHTML = '<option value="">- Memuat... -</option>';
@@ -1342,7 +1539,7 @@
             tr.style.fontWeight = 'bold';
             tr.innerHTML = `
                 <td>${q.no}</td>
-                <td colspan="5">${q.pertanyaan}</td>
+                <td colspan="6">${q.pertanyaan}</td>
             `;
           } else {
             let saved = savedDraft[index] || {};
@@ -1373,9 +1570,22 @@
                 <td>
                     <textarea id="keterangan_${index}" class="form-group" style="margin:0; padding:6px; min-height: 40px;" placeholder="Isi jika diperlukan...">${keterangan}</textarea>
                 </td>
+                <td>
+                    <div id="photoArea_${index}" class="photo-upload-area">
+                        <div class="photo-add-btn" onclick="triggerPhotoUpload(${index})" title="Upload/Take Foto">
+                            <i class="fa-solid fa-camera"></i>
+                        </div>
+                    </div>
+                    <input type="file" id="photoInput_${index}" accept="image/*" capture="environment" style="display:none;" onchange="handlePhotoSelected(event, ${index})">
+                </td>
             `;
           }
           tbody.appendChild(tr);
+        });
+
+        // Render existing photos
+        Object.keys(formPhotos).forEach(idx => {
+          renderPhotosInForm(parseInt(idx));
         });
       }
 
@@ -1395,6 +1605,7 @@
         const radioVal = document.querySelector(`input[name="kesesuaian_${index}"]:checked`)?.value;
         const ketEl = document.getElementById(`keterangan_${index}`);
         const selectEl = document.getElementById(`kategori_${index}`);
+        const photoArea = document.getElementById(`photoArea_${index}`);
         
         if (radioVal === 'Tidak') {
           ketEl.placeholder = "Wajib diisi (Temuan)!";
@@ -1411,6 +1622,14 @@
           });
           if (selectEl.value === 'C') selectEl.value = '';
           
+          // Show photo required badge
+          if (photoArea && !photoArea.querySelector('.photo-required-badge')) {
+            const badge = document.createElement('span');
+            badge.className = 'photo-required-badge';
+            badge.textContent = 'Wajib foto';
+            photoArea.parentElement.insertBefore(badge, photoArea.nextSibling);
+          }
+          
         } else if (radioVal === 'Ya') {
           ketEl.placeholder = "Opsional...";
           ketEl.style.borderColor = "var(--border)";
@@ -1426,6 +1645,10 @@
           });
           selectEl.value = 'C';
           
+          // Remove photo required badge
+          const badge = photoArea?.parentElement?.querySelector('.photo-required-badge');
+          if (badge) badge.remove();
+          
         } else {
           ketEl.placeholder = "Opsional...";
           ketEl.style.borderColor = "var(--border)";
@@ -1434,12 +1657,17 @@
             opt.disabled = false;
             opt.style.display = '';
           });
+          
+          // Remove photo required badge
+          const badge = photoArea?.parentElement?.querySelector('.photo-required-badge');
+          if (badge) badge.remove();
         }
       }
 
       function collectFormData() {
         let data = [];
         let isValid = true;
+        let missingPhotos = [];
         currentQuestions.forEach((q, index) => {
           if (q.type == 1 || q.type == 2 || q.type == 3) {
             data.push({
@@ -1448,7 +1676,8 @@
               pertanyaan: q.pertanyaan,
               kriteria: q.kriteria || '',
               hasilPengamatan: '',
-              kategoriVal: ''
+              kategoriVal: '',
+              photos: []
             });
             return;
           }
@@ -1456,9 +1685,13 @@
           const kesesuaian = document.querySelector(`input[name="kesesuaian_${index}"]:checked`)?.value || '-';
           const kategori = document.getElementById(`kategori_${index}`).value;
           const keterangan = document.getElementById(`keterangan_${index}`).value;
+          const photos = formPhotos[index] || [];
 
           if (kesesuaian === 'Tidak' && (keterangan.trim() === '' || kategori === '')) {
             isValid = false;
+          }
+          if (kesesuaian === 'Tidak' && photos.length === 0) {
+            missingPhotos.push(q.no || (index + 1));
           }
 
           // Gabung Keterangan dari kriteria
@@ -1477,7 +1710,8 @@
             pertanyaan: q.pertanyaan,
             kriteria: q.kriteria || '',
             hasilPengamatan: hasilPengamatan,
-            kategoriVal: kategori
+            kategoriVal: kategori,
+            photos: photos.map(p => ({ url: p.url, fileId: p.fileId || '', caption: p.caption || '' }))
           });
         });
 
@@ -1485,10 +1719,176 @@
           Swal.fire('Gagal', 'Pilihan "Tidak" mewajibkan Anda untuk memilih Kategori (Minor/Major/Kritis) dan mengisi Keterangan.', 'warning');
           return null;
         }
+        if (missingPhotos.length > 0) {
+          Swal.fire('Foto Wajib', `Item berikut wajib dilampirkan foto: No. ${missingPhotos.join(', ')}`, 'warning');
+          return null;
+        }
         return data;
       }
 
       // 5. PREVIEW & SIGN & SUBMIT
+      // --- PHOTO UPLOAD & CROP FUNCTIONS ---
+      function triggerPhotoUpload(index) {
+        currentCropIndex = index;
+        document.getElementById(`photoInput_${index}`).click();
+      }
+
+      function handlePhotoSelected(event, index) {
+        const file = event.target.files[0];
+        if (!file) return;
+        event.target.value = '';
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = new Image();
+          img.onload = function() {
+            openCropModal(img, index);
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function openCropModal(img, index) {
+        currentCropIndex = index;
+        currentCropData = img;
+        document.getElementById('cropCaption').value = '';
+
+        const canvas = document.getElementById('cropCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Determine 1:1 crop from center
+        const size = Math.min(img.width, img.height);
+        const sx = (img.width - size) / 2;
+        const sy = (img.height - size) / 2;
+
+        canvas.width = 400;
+        canvas.height = 400;
+        ctx.drawImage(img, sx, sy, size, size, 0, 0, 400, 400);
+
+        showModal('cropModal');
+      }
+
+      function confirmCrop() {
+        const canvas = document.getElementById('cropCanvas');
+        const caption = document.getElementById('cropCaption').value.trim();
+        const dataUrl = canvas.toDataURL('image/png');
+        const index = currentCropIndex;
+
+        if (!formPhotos[index]) formPhotos[index] = [];
+
+        const photoObj = {
+          id: 'photo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+          url: dataUrl, // Will be replaced with Drive URL on save
+          fileId: '',
+          caption: caption,
+          local: true // Mark as not yet uploaded
+        };
+
+        formPhotos[index].push(photoObj);
+        renderPhotosInForm(index);
+        closeModal('cropModal');
+        currentCropIndex = null;
+        currentCropData = null;
+      }
+
+      function cancelCrop() {
+        closeModal('cropModal');
+        currentCropIndex = null;
+        currentCropData = null;
+      }
+
+      function renderPhotosInForm(index) {
+        const area = document.getElementById(`photoArea_${index}`);
+        if (!area) return;
+
+        const photos = formPhotos[index] || [];
+        area.innerHTML = '';
+
+        photos.forEach((photo, pIdx) => {
+          const thumb = document.createElement('div');
+          thumb.className = 'photo-thumb';
+          thumb.innerHTML = `
+            <img src="${photo.url}" alt="Foto">
+            <div class="photo-overlay">
+              <i class="fa-solid fa-pen" onclick="event.stopPropagation(); editPhotoCaption(${index}, ${pIdx})" title="Edit Keterangan"></i>
+              <i class="fa-solid fa-trash" onclick="event.stopPropagation(); deletePhoto(${index}, ${pIdx})" title="Hapus Foto"></i>
+            </div>
+          `;
+          area.appendChild(thumb);
+        });
+
+        // Add button
+        const addBtn = document.createElement('div');
+        addBtn.className = 'photo-add-btn';
+        addBtn.title = 'Upload/Take Foto';
+        addBtn.innerHTML = '<i class="fa-solid fa-camera"></i>';
+        addBtn.onclick = () => triggerPhotoUpload(index);
+        area.appendChild(addBtn);
+      }
+
+      function editPhotoCaption(itemIndex, photoIndex) {
+        const photo = formPhotos[itemIndex]?.[photoIndex];
+        if (!photo) return;
+
+        Swal.fire({
+          title: 'Edit Keterangan Foto',
+          input: 'text',
+          inputLabel: 'Keterangan',
+          inputValue: photo.caption || '',
+          showCancelButton: true,
+          confirmButtonText: 'Simpan',
+          cancelButtonText: 'Batal'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            formPhotos[itemIndex][photoIndex].caption = result.value;
+          }
+        });
+      }
+
+      function deletePhoto(itemIndex, photoIndex) {
+        Swal.fire({
+          title: 'Hapus foto ini?',
+          text: 'Foto akan dihapus dari lampiran.',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#d33',
+          confirmButtonText: 'Ya, hapus!'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            formPhotos[itemIndex].splice(photoIndex, 1);
+            renderPhotosInForm(itemIndex);
+          }
+        });
+      }
+
+      function renderLampiran(lampiran) {
+        const grid = document.getElementById('lampiranGrid');
+        const area = document.getElementById('lampiranArea');
+        if (!grid || !area) return;
+
+        if (!lampiran || lampiran.length === 0) {
+          area.classList.add('hidden');
+          return;
+        }
+
+        area.classList.remove('hidden');
+        grid.innerHTML = '';
+
+        lampiran.forEach((item, idx) => {
+          const div = document.createElement('div');
+          div.className = 'lampiran-item';
+          const caption = item.caption || `Lampiran ke-${idx + 1}`;
+          div.innerHTML = `
+            <img src="${item.url}" alt="${caption}" loading="lazy">
+            <div class="lampiran-caption">${caption}</div>
+          `;
+          grid.appendChild(div);
+        });
+      }
+
+      // --- END PHOTO FUNCTIONS ---
+
       function setupCanvas(id) {
         const canvas = document.getElementById(id);
         const ctx = canvas.getContext('2d');
@@ -1875,6 +2275,9 @@
             document.getElementById('auditeeSavedSignImg').src = d.auditeeSignature || '';
             document.getElementById('prevHash').innerText = d.hashIntegritas || "Belum disubmit";
 
+            // Render lampiran
+            renderLampiran(d.lampiran || []);
+
             document.getElementById('btnSimpanPreview').style.display = 'none';
 
             showModal('modalPreview');
@@ -1955,6 +2358,15 @@
         document.getElementById('auditorSavedSignImg').src = '';
         document.getElementById('auditeeSavedSignImg').src = '';
         document.getElementById('prevHash').innerText = 'Menunggu Submit...';
+
+        // Render lampiran
+        let allPhotos = [];
+        Object.keys(formPhotos).forEach(idx => {
+          (formPhotos[idx] || []).forEach(p => {
+            allPhotos.push({ url: p.url, caption: p.caption || '' });
+          });
+        });
+        renderLampiran(allPhotos);
         
         document.getElementById('btnSimpanPreview').style.display = 'inline-flex';
 
@@ -1965,6 +2377,14 @@
         const cData = collectFormData();
         if (!cData) return; // Validation failed
 
+        // Collect all photos from all items into lampiran
+        let allPhotos = [];
+        Object.keys(formPhotos).forEach(idx => {
+          (formPhotos[idx] || []).forEach(p => {
+            allPhotos.push({ url: p.url, fileId: p.fileId || '', caption: p.caption || '', itemIndex: parseInt(idx) });
+          });
+        });
+
         let payloadData = {
           id: currentEditId,
           nik: currentUser.nik,
@@ -1973,7 +2393,8 @@
           auditeeName: currentAuditee,
           kategori: currentCategory,
           departemen: currentDept,
-          checklistData: cData || []
+          checklistData: cData || [],
+          lampiran: allPhotos
         };
 
         // Mock saving for UI feedback
@@ -2123,6 +2544,15 @@
             currentCategory = res.data.kategori;
             currentDept = res.data.departemen;
             currentQuestions = res.data.checklistData.map(d => ({ no: d.no, type: d.type, kriteria: d.kriteria, pertanyaan: d.pertanyaan }));
+            
+            // Restore photos from lampiran
+            formPhotos = {};
+            (res.data.lampiran || []).forEach(p => {
+              const idx = p.itemIndex !== undefined ? p.itemIndex : 0;
+              if (!formPhotos[idx]) formPhotos[idx] = [];
+              formPhotos[idx].push({ url: p.url, fileId: p.fileId || '', caption: p.caption || '' });
+            });
+
             saveSessionState();
 
             document.getElementById('formAuditeeLabel').innerText = currentAuditee;
@@ -2137,7 +2567,7 @@
                 tr.style.fontWeight = 'bold';
                 tr.innerHTML = `
                     <td>${q.no}</td>
-                    <td colspan="5">${q.pertanyaan}</td>
+                    <td colspan="6">${q.pertanyaan}</td>
                 `;
               } else {
                 let savedDraft = {};
@@ -2179,12 +2609,24 @@
                         </select>
                     </td>
                     <td><textarea id="keterangan_${index}" class="form-group" style="margin:0; padding:6px; min-height: 40px;">${displayKeterangan}</textarea></td>
+                    <td>
+                        <div id="photoArea_${index}" class="photo-upload-area">
+                            <div class="photo-add-btn" onclick="triggerPhotoUpload(${index})" title="Upload/Take Foto">
+                                <i class="fa-solid fa-camera"></i>
+                            </div>
+                        </div>
+                        <input type="file" id="photoInput_${index}" accept="image/*" capture="environment" style="display:none;" onchange="handlePhotoSelected(event, ${index})">
+                    </td>
                 `;
               }
 
               tbody.appendChild(tr);
               if (q.type != 1 && q.type != 2 && q.type != 3) {
                 checkKeterangan(index);
+                // Render photos for this item
+                if (formPhotos[index] && formPhotos[index].length > 0) {
+                  renderPhotosInForm(index);
+                }
               }
             });
             changeState('stateForm');
@@ -2723,6 +3165,9 @@
 
             // Set Signatures & Wait for Load
             document.getElementById('prevHash').innerText = d.hashIntegritas || "Belum disubmit";
+
+            // Render lampiran
+            renderLampiran(d.lampiran || []);
 
             function triggerPrint() {
               const originalTitle = document.title;

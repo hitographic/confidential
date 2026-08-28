@@ -34,6 +34,15 @@ function getSheet(sheetName) {
        sheet.appendRow(['ID', 'Kategori', 'Departemen']);
     }
   }
+  // Pastikan kolom Lampiran (L) ada untuk sheet data_pengamatan
+  if (sheetName === 'data_pengamatan') {
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    if (headers.length < 12 || !headers[11] || String(headers[11]).trim() !== 'Lampiran (JSON)') {
+      if (headers.length < 12) {
+        sheet.getRange(1, 12).setValue('Lampiran (JSON)');
+      }
+    }
+  }
   return sheet;
 }
 
@@ -50,6 +59,44 @@ function saveImageToDrive(base64Data, filename) {
     return "https://drive.google.com/thumbnail?id=" + file.getId() + "&sz=w1000";
   } catch(e) {
     return "Error Upload: " + e.message;
+  }
+}
+
+// --- Fungsi Folder Kategori ---
+function getCategoryFolder(kategori) {
+  const parentFolder = DriveApp.getFolderById(FOLDER_ID);
+  const folderName = kategori || 'Lainnya';
+  const folders = parentFolder.getFoldersByName(folderName);
+  if (folders.hasNext()) {
+    return folders.next();
+  }
+  return parentFolder.createFolder(folderName);
+}
+
+// --- Fungsi Upload/Hapus Foto Lampiran ---
+function handleUploadPhoto(base64Data, kategori, filename) {
+  try {
+    if (!base64Data) return { success: false, message: "Data foto kosong." };
+    const folder = getCategoryFolder(kategori);
+    const data = base64Data.split(',')[1];
+    const blob = Utilities.newBlob(Utilities.base64Decode(data), 'image/png', filename || ('lampiran_' + new Date().getTime() + '.png'));
+    const file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    const url = "https://drive.google.com/thumbnail?id=" + file.getId() + "&sz=w1000";
+    return { success: true, url: url, fileId: file.getId() };
+  } catch (e) {
+    return { success: false, message: e.message };
+  }
+}
+
+function handleDeletePhoto(fileId) {
+  try {
+    if (!fileId) return { success: false, message: "File ID kosong." };
+    const file = DriveApp.getFileById(fileId);
+    file.setTrashed(true);
+    return { success: true, message: "Foto berhasil dihapus." };
+  } catch (e) {
+    return { success: false, message: e.message };
   }
 }
 
@@ -215,6 +262,7 @@ function handleSaveData(formData, status) {
     let urlAuditee = formData.auditeeSignature || (existingData[8] || "");
     let hashIntegritas = existingData[9] || "";
     let savedDepartemen = formData.departemen || (existingData[10] || "-");
+    let savedLampiran = formData.lampiran || (existingData[11] || "[]");
 
     if (status === 'Submitted') {
        if (urlAuditor.startsWith('data:image')) {
@@ -251,7 +299,8 @@ function handleSaveData(formData, status) {
       urlAuditor,
       urlAuditee,
       hashIntegritas,
-      savedDepartemen
+      savedDepartemen,
+      typeof savedLampiran === 'string' ? savedLampiran : JSON.stringify(savedLampiran)
     ];
 
     if (isUpdate && rowIndex > -1) {
@@ -389,7 +438,8 @@ function handleGetDetail(id) {
             auditorSignature: data[i][7],
             auditeeSignature: data[i][8],
             hashIntegritas: data[i][9],
-            departemen: data[i][10] || '-'
+            departemen: data[i][10] || '-',
+            lampiran: (() => { try { return JSON.parse(data[i][11] || '[]'); } catch(e) { return []; } })()
           }
         };
       }
@@ -439,6 +489,12 @@ function doPost(e) {
         break;
       case "updateSignature":
         result = handleUpdateSignature(postData.id, postData.role, postData.signatureData, postData.nik, postData.ipAddress, postData.auditeeName);
+        break;
+      case "uploadPhoto":
+        result = handleUploadPhoto(postData.base64Data, postData.kategori, postData.filename);
+        break;
+      case "deletePhoto":
+        result = handleDeletePhoto(postData.fileId);
         break;
       default:
         result = { success: false, message: "Action tidak dikenal." };
