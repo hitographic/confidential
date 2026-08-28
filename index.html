@@ -498,7 +498,9 @@
     .sig-crop-info { font-size: 11px; color: #94a3b8; text-align: center; margin-bottom: 12px; }
 
     /* --- LAMPIRAN STYLES --- */
-    #lampiranArea { page-break-before: always; margin-top: 20px; }
+    #lampiranArea { margin-top: 0; }
+    #lampiranPage { font-family: 'Times New Roman', Times, serif !important; }
+    #lampiranPage * { font-family: 'Times New Roman', Times, serif !important; }
     .lampiran-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 10px 0; }
     .lampiran-item { text-align: center; }
     .lampiran-item img { width: 100%; aspect-ratio: 1; object-fit: cover; border: 1px solid #ccc; border-radius: 4px; }
@@ -517,7 +519,8 @@
       #previewArea td, #previewArea th { padding: 4px !important; font-size: 11px; }
       .btn, div[onclick], .modal-content>div:first-child { display: none !important; }
       .sign-canvas { border: none !important; background: transparent; }
-      #lampiranArea { display: block !important; page-break-before: always; margin-top: 0 !important; }
+      #lampiranArea { display: block !important; }
+      #lampiranPage { width: 100% !important; min-height: 100% !important; margin: 0 !important; padding: 15mm !important; box-sizing: border-box !important; border: none !important; page-break-before: always !important; page-break-after: avoid !important; }
       .lampiran-grid { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 10px !important; }
       .lampiran-item img { width: 100% !important; height: auto !important; aspect-ratio: 1 !important; object-fit: cover !important; }
       * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -1038,15 +1041,14 @@
             </div>
 
           </div>
+        </div>
 
-          <!-- LAMPIRAN SECTION (inside previewArea for print) -->
-          <div id="lampiranArea" class="hidden" style="margin-top: 20px;">
-            <div style="border: 2px solid black; padding: 15px; background: white;">
-              <h3 style="text-align: center; font-weight: bold; margin-bottom: 10px; font-size: 14px; text-decoration: underline;">LAMPIRAN</h3>
-              <div id="lampiranGrid" class="lampiran-grid"></div>
-            </div>
+        <!-- LAMPIRAN SECTION (separate A4 page) -->
+        <div id="lampiranArea" class="hidden">
+          <div id="lampiranPage" style="background: white; padding: 20px; color: black; font-family: 'Times New Roman', Times, serif; font-size: 13px; width: 794px; min-height: 1123px; box-sizing: border-box; margin: 20px auto 0; border: 2px solid black;">
+            <h3 style="text-align: center; font-weight: bold; margin-bottom: 15px; font-size: 16px; text-decoration: underline; padding-top: 10px;">LAMPIRAN</h3>
+            <div id="lampiranGrid" class="lampiran-grid"></div>
           </div>
-
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
