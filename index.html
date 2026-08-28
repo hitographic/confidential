@@ -512,10 +512,10 @@
       @page { margin: 0; size: A4 portrait; }
       body, html { background: white; margin: 0 !important; padding: 0 !important; width: 100% !important; height: 100% !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       #navbar, .container, footer { display: none !important; }
-      #modalPreview { position: absolute; top: 0; left: 0; width: 100vw !important; height: 100vh !important; background: none; display: flex !important; padding: 0; margin: 0; align-items: center !important; justify-content: center !important; opacity: 1 !important; visibility: visible !important; overflow: hidden !important; }
-      .modal-content { box-shadow: none; padding: 0; width: 100vw !important; height: 100vh !important; max-width: 100%; max-height: none; overflow: hidden !important; transform: none !important; display: flex !important; flex-direction: column; }
-      .preview-wrapper { padding: 0 !important; margin: 0 !important; border: none !important; width: 100% !important; height: 100% !important; max-height: none !important; overflow: hidden !important; display: flex !important; flex-direction: column; }
-      #previewArea { width: 100% !important; height: 100% !important; min-height: 100% !important; margin: 0 !important; padding: 15mm !important; box-sizing: border-box !important; display: flex !important; flex-direction: column; overflow: hidden !important; page-break-after: avoid !important; page-break-inside: avoid !important; }
+      #modalPreview { position: absolute; top: 0; left: 0; width: 100vw !important; background: none; display: flex !important; padding: 0; margin: 0; align-items: flex-start !important; justify-content: center !important; opacity: 1 !important; visibility: visible !important; overflow: visible !important; }
+      .modal-content { box-shadow: none; padding: 0; width: 100vw !important; max-width: 100%; max-height: none; overflow: visible !important; transform: none !important; display: block !important; }
+      .preview-wrapper { padding: 0 !important; margin: 0 !important; border: none !important; width: 100% !important; max-height: none !important; overflow: visible !important; display: block !important; }
+      #previewArea { width: 100% !important; min-height: 1123px !important; margin: 0 !important; padding: 15mm !important; box-sizing: border-box !important; display: flex !important; flex-direction: column; overflow: visible !important; page-break-after: always !important; page-break-inside: avoid !important; }
       #previewArea td, #previewArea th { padding: 4px !important; font-size: 11px; }
       .btn, div[onclick], .modal-content>div:first-child { display: none !important; }
       .sign-canvas { border: none !important; background: transparent; }
