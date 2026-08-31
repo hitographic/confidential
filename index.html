@@ -3542,122 +3542,99 @@
           if (!res.success) { Swal.fire('Gagal', res.message, 'error'); return; }
           const d = res.data;
 
-          // Build checkboxes HTML
-          const cbHtml = '<table style="width:100%;border:none;font-weight:bold;font-size:13px;">' +
-            '<tr><td style="border:none;padding:2px;"><div style="display:inline-block;width:14px;height:10px;border:1.5px solid #000;text-align:center;line-height:10px;font-size:9px;vertical-align:middle;margin-right:4px;">' + (d.kategori==='Halal'?'V':'&nbsp;') + '</div>Halal</td>' +
-            '<td style="border:none;padding:2px;"><div style="display:inline-block;width:14px;height:10px;border:1.5px solid #000;text-align:center;line-height:10px;font-size:9px;vertical-align:middle;margin-right:4px;">' + (d.kategori==='SMK3'?'V':'&nbsp;') + '</div>SMK3</td>' +
-            '<td style="border:none;padding:2px;"><div style="display:inline-block;width:14px;height:10px;border:1.5px solid #000;">&nbsp;</div> .........</td></tr>' +
-            '<tr><td style="border:none;padding:2px;"><div style="display:inline-block;width:14px;height:10px;border:1.5px solid #000;text-align:center;line-height:10px;font-size:9px;vertical-align:middle;margin-right:4px;">' + (d.kategori==='ISO'?'V':'&nbsp;') + '</div>ISO</td>' +
-            '<td style="border:none;padding:2px;"><div style="display:inline-block;width:14px;height:10px;border:1.5px solid #000;text-align:center;line-height:10px;font-size:9px;vertical-align:middle;margin-right:4px;">' + (d.kategori==='SML'?'V':'&nbsp;') + '</div>SML</td><td style="border:none;padding:2px;"></td></tr>' +
-            '<tr><td style="border:none;padding:2px;"><div style="display:inline-block;width:14px;height:10px;border:1.5px solid #000;text-align:center;line-height:10px;font-size:9px;vertical-align:middle;margin-right:4px;">' + (d.kategori==='FSSC'?'V':'&nbsp;') + '</div>FSSC</td>' +
-            '<td style="border:none;padding:2px;"><div style="display:inline-block;width:14px;height:10px;border:1.5px solid #000;text-align:center;line-height:10px;font-size:9px;vertical-align:middle;margin-right:4px;">' + (d.kategori==='SME'?'V':'&nbsp;') + '</div>SME</td><td style="border:none;padding:2px;"></td></tr></table>';
+          // === PAGE 1: Populate previewArea exactly like previewData() ===
+          const cbHtml = `
+                <table style="width:100%; border:none; font-weight:bold; font-size: 14px;">
+                    <tr>
+                        <td style="border:none; padding:2px;"><div class="check-box">${d.kategori === 'Halal' ? 'V' : '&nbsp;'}</div> Halal</td>
+                        <td style="border:none; padding:2px;"><div class="check-box">${d.kategori === 'SMK3' ? 'V' : '&nbsp;'}</div> SMK3</td>
+                        <td style="border:none; padding:2px;"><div class="check-box" style="width:40px;">&nbsp;</div> .........</td>
+                    </tr>
+                    <tr>
+                        <td style="border:none; padding:2px;"><div class="check-box">${d.kategori === 'ISO' ? 'V' : '&nbsp;'}</div> ISO</td>
+                        <td style="border:none; padding:2px;"><div class="check-box">${d.kategori === 'SML' ? 'V' : '&nbsp;'}</div> SML</td>
+                        <td style="border:none; padding:2px;"></td>
+                    </tr>
+                    <tr>
+                        <td style="border:none; padding:2px;"><div class="check-box">${d.kategori === 'FSSC' ? 'V' : '&nbsp;'}</div> FSSC</td>
+                        <td style="border:none; padding:2px;"><div class="check-box">${d.kategori === 'SME' ? 'V' : '&nbsp;'}</div> SME</td>
+                        <td style="border:none; padding:2px;"></td>
+                    </tr>
+                </table>`;
+            document.getElementById('previewCheckboxes').innerHTML = cbHtml;
+            document.getElementById('prevDept').innerText = d.departemen;
+            const months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+            const dt = new Date(d.tanggal);
+            document.getElementById('prevDate').innerText = dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
 
-          // Build table rows
-          let tableRows = '';
-          let counter = 1;
-          const months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-          const dt = new Date(d.tanggal || new Date());
-          const dateStr = dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
-
-          (d.checklistData || []).forEach(row => {
-            if (row.type == 1 || row.type == 2 || row.type == 3) return;
-            if (!row.hasilPengamatan || row.hasilPengamatan.trim() === '') return;
-            tableRows += '<tr style="height:1px;">' +
-              '<td style="text-align:center;font-weight:bold;">' + (counter++) + '</td>' +
-              '<td style="padding-left:10px;">' + (row.hasilPengamatan || '') + '</td>' +
-              '<td style="text-align:center;">' + (row.kriteria || '-') + '</td>' +
-              '<td style="text-align:center;">' + (row.kategoriVal || '-') + '</td></tr>';
-          });
-
-          // Build lampiran HTML
-          let lampiranHtml = '';
-          const lampiranItems = d.lampiran || [];
-          if (lampiranItems.length > 0) {
-            let lampiranImgs = '';
-            lampiranItems.forEach((item, idx) => {
-              const caption = item.caption || 'Lampiran ke-' + (idx + 1);
-              lampiranImgs += '<div style="text-align:center;"><img src="' + (item.url || '') + '" style="max-width:100%;border:1px solid #ccc;border-radius:4px;" /><div style="font-size:11px;margin-top:4px;font-style:italic;color:#333;">' + caption + '</div></div>';
+            const tbody = document.getElementById('previewTableBody');
+            tbody.innerHTML = '';
+            let counterPreview = 1;
+            d.checklistData.forEach(row => {
+              const tr = document.createElement('tr');
+              tr.style.height = '1px';
+              if (row.type == 1 || row.type == 2 || row.type == 3) return;
+              if (!row.hasilPengamatan || row.hasilPengamatan.trim() === '') return;
+              tr.innerHTML = `
+                  <td style="text-align:center; font-weight:bold;">${counterPreview++}</td>
+                  <td style="padding-left: 10px;">${row.hasilPengamatan || ''}</td>
+                  <td style="text-align:center;">${row.kriteria || '-'}</td>
+                  <td style="text-align:center;">${row.kategoriVal || '-'}</td>`;
+              tbody.appendChild(tr);
             });
-            lampiranHtml = '<div style="page-break-before:always;background:white;padding:20px;color:black;font-family:\'Times New Roman\',Times,serif;font-size:13px;min-height:287mm;box-sizing:border-box;">' +
-              '<h3 style="text-align:center;font-weight:bold;margin-bottom:15px;font-size:16px;text-decoration:underline;padding-top:10px;">LAMPIRAN</h3>' +
-              '<div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;padding:10px 0;">' + lampiranImgs + '</div></div>';
-          }
+            const fillerTr = document.createElement('tr');
+            fillerTr.style.height = '100%';
+            fillerTr.innerHTML = '<td></td><td></td><td></td><td></td>';
+            tbody.appendChild(fillerTr);
 
-          // Build full standalone HTML
-          const auditorSignUrl = d.auditorSignature || '';
-          const auditeeSignUrl = d.auditeeSignature || '';
-          const hashText = d.hashIntegritas || 'Belum disubmit';
+            document.getElementById('prevAuditorName').innerText = d.auditorName;
+            document.getElementById('prevAuditeeName').innerText = d.auditeeName;
+            document.getElementById('auditorSavedSignImg').src = d.auditorSignature || '';
+            document.getElementById('auditeeSavedSignImg').src = d.auditeeSignature || '';
+            document.getElementById('prevHash').innerText = d.hashIntegritas || "Belum disubmit";
 
-          const html = '<!doctype html><html><head><meta charset="utf-8"><style>' +
-            '@page{size:A4 portrait;margin:0}' +
-            '*{box-sizing:border-box}' +
-            'body{font-family:"Times New Roman",Times,serif;font-size:13px;line-height:1.2;margin:0;color:#000}' +
-            '.page-frame{border:2px solid #000;min-height:287mm;padding:0;}' +
-            'table{width:100%;border-collapse:collapse}' +
-            'td,th{border:none;padding:2px 5px;vertical-align:middle}' +
-            '.header-row{display:flex;border-bottom:2px solid #000}' +
-            '.header-left{width:58%;border-right:2px solid #000;padding:10px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:bold;font-size:14px;}' +
-            '.header-right{width:42%;padding:10px;font-weight:bold;font-size:13px;}' +
-            '.header-right table td{border:none;padding:2px 0;}' +
-            '.title-row{display:flex;border-bottom:2px solid #000;}' +
-            '.title-left{width:45%;padding:15px;font-weight:bold;font-size:16px;display:flex;align-items:center;}' +
-            '.title-right{width:55%;padding:10px;}' +
-            '.info-row{padding:10px 15px;border-bottom:2px solid #000;font-weight:bold;}' +
-            '.info-row table td{border:none;padding:2px 0;font-weight:bold;font-size:14px;}' +
-            '.data-table{width:100%;border-collapse:collapse;flex-grow:1;}' +
-            '.data-table col.c1{width:5%}' +
-            '.data-table col.c2{width:65%}' +
-            '.data-table col.c3{width:15%}' +
-            '.data-table col.c4{width:15%}' +
-            '.data-table th{border-bottom:2px solid #000;padding:10px;font-weight:bold;}' +
-            '.data-table td{padding:5px;vertical-align:top;border-right:2px solid #000;}' +
-            '.data-table td:last-child{border-right:none;}' +
-            '.data-table tbody tr{border-bottom:1px dotted #ccc;}' +
-            '.sig-row{display:flex;border-top:2px solid #000;padding:15px;}' +
-            '.sig-col{flex:1;text-align:center;display:flex;flex-direction:column;align-items:center;}' +
-            '.sig-col img{width:150px;height:80px;object-fit:contain;transform:scale(1.2);}' +
-            '.sig-name{border-top:1px solid #000;margin-top:5px;width:150px;font-weight:bold;padding-top:5px;}' +
-            '.hash-row{font-size:8px;color:#888;text-align:left;padding:5px 15px;border-top:1px dashed #ccc;}' +
-            '</style></head><body>' +
-            '<div class="page-frame">' +
-            '<div class="header-row"><div class="header-left">PT INDOFOOD CBP SUKSES MAKMUR Tbk<br>DIVISI NOODLE - PABRIK CIBITUNG</div>' +
-            '<div class="header-right"><table><tr><td>Kode Form</td><td>: MGT - 003</td></tr><tr><td>No. Terbitan</td><td>: 2.0</td></tr><tr><td>Tgl. Efektif</td><td>: 02 Oktober 2023</td></tr><tr><td>Halaman</td><td>: 1 / 1</td></tr></table></div></div>' +
-            '<div class="title-row"><div class="title-left">PENGAMATAN INTERNAL AUDIT</div><div class="title-right">' + cbHtml + '</div></div>' +
-            '<div class="info-row"><table><tr><td style="width:120px;">Departemen</td><td>: ' + (d.departemen || '') + '</td></tr><tr><td>Tanggal</td><td>: ' + dateStr + '</td></tr></table></div>' +
-            '<div style="display:flex;flex-direction:column;flex-grow:1;"><table class="data-table"><colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"></colgroup>' +
-            '<thead><tr><th style="border-bottom:2px solid #000;">NO.</th><th style="border-bottom:2px solid #000;">HASIL PENGAMATAN</th><th style="border-bottom:2px solid #000;">ELEMEN /<br>KLAUSUL</th><th style="border-bottom:2px solid #000;">KATEGORI</th></tr></thead>' +
-            '<tbody>' + tableRows + '<tr style="height:100%;"><td></td><td></td><td></td><td></td></tr></tbody></table></div>' +
-            '<div class="sig-row">' +
-            '<div class="sig-col"><div style="font-weight:bold;margin-bottom:10px;">Auditor</div>' +
-            '<img src="' + auditorSignUrl + '" style="width:150px;height:80px;object-fit:contain;transform:scale(1.2);" />' +
-            '<div class="sig-name">' + (d.auditorName || '') + '</div></div>' +
-            '<div class="sig-col"><div style="font-weight:bold;margin-bottom:10px;">Auditee</div>' +
-            '<img src="' + auditeeSignUrl + '" style="width:150px;height:80px;object-fit:contain;transform:scale(1.2);" />' +
-            '<div class="sig-name">' + (d.auditeeName || '') + '</div></div>' +
-            '<div class="sig-col" style="flex:1;font-size:12px;font-weight:bold;padding-left:20px;align-items:flex-start;">' +
-            '<div style="margin-bottom:5px;">Kategori :</div>' +
-            '<table style="border:none;font-style:italic;"><tr><td style="border:none;padding:2px;">C</td><td style="border:none;padding:2px;">= Conformance</td></tr>' +
-            '<tr><td style="border:none;padding:2px;">Minor</td><td style="border:none;padding:2px;">= Temuan Minor</td></tr>' +
-            '<tr><td style="border:none;padding:2px;">Major</td><td style="border:none;padding:2px;">= Temuan Major</td></tr>' +
-            '<tr><td style="border:none;padding:2px;">Kritis</td><td style="border:none;padding:2px;">= Temuan Kritis</td></tr></table></div></div>' +
-            '<div class="hash-row">Hash Integritas (SHA-256): <span style="font-family:monospace;">' + hashText + '</span></div>' +
-            '</div>' +
-            lampiranHtml +
-            '</body></html>';
+            // === PAGE 2: Populate lampiranPage exactly like renderLampiran() ===
+            renderLampiran(d.lampiran || []);
 
-          // Open new window and print (X-Porta approach)
-          const printWindow = window.open('', '_blank');
-          if (!printWindow) {
-            Swal.fire('Error', 'Browser memblokir pop-up. Izinkan pop-up untuk situs ini.', 'error');
-            return;
-          }
-          printWindow.document.write(html);
-          printWindow.document.close();
-          setTimeout(() => {
-            printWindow.focus();
-            printWindow.print();
-            Swal.close();
-          }, 500);
+            // === Grab actual DOM innerHTML ===
+            const page1Html = document.getElementById('previewArea').innerHTML;
+            const lampiranArea = document.getElementById('lampiranArea');
+            const hasLampiran = !lampiranArea.classList.contains('hidden');
+            const page2Html = hasLampiran ? document.getElementById('lampiranPage').innerHTML : '';
+
+            // === Build standalone HTML with same CSS ===
+            const printHtml = '<!doctype html><html><head><meta charset="utf-8"><style>' +
+              '@page{size:A4 portrait;margin:0}' +
+              '*{box-sizing:border-box}' +
+              'body{font-family:"Times New Roman",Times,serif;font-size:13px;line-height:1.2;margin:0;color:#000}' +
+              '#previewArea{background:white;color:black;font-family:"Times New Roman",Times,serif;font-size:13px;width:100%;height:100%;max-height:100%;overflow:hidden;display:flex;flex-direction:column;padding:0;margin:0;border:none;}' +
+              '#previewArea *{font-family:"Times New Roman",Times,serif !important;}' +
+              '.check-box{display:inline-block;width:25px;height:18px;border:2px solid black;text-align:center;line-height:18px;vertical-align:middle;margin-right:5px;}' +
+              '#previewTableBody td{border-right:2px solid black;border-bottom:none;border-top:none;padding:10px;vertical-align:top;}' +
+              '#previewTableBody td:last-child{border-right:none;}' +
+              '#lampiranPage{background:white;padding:20px;color:black;font-family:"Times New Roman",Times,serif;font-size:13px;width:100%;min-height:100%;box-sizing:border-box;border:2px solid black;}' +
+              '#lampiranPage *{font-family:"Times New Roman",Times,serif !important;}' +
+              '.lampiran-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;padding:10px 0;}' +
+              '.lampiran-item{text-align:center;}' +
+              '.lampiran-item img{width:100%;aspect-ratio:1;object-fit:cover;border:1px solid #ccc;border-radius:4px;}' +
+              '.lampiran-item .lampiran-caption{font-size:11px;margin-top:4px;font-style:italic;color:#333;}' +
+              '</style></head><body>' +
+              page1Html +
+              (hasLampiran ? '<div style="page-break-before:always;">' + page2Html + '</div>' : '') +
+              '</body></html>';
+
+            const printWindow = window.open('', '_blank');
+            if (!printWindow) {
+              Swal.fire('Error', 'Browser memblokir pop-up. Izinkan pop-up untuk situs ini.', 'error');
+              return;
+            }
+            printWindow.document.write(printHtml);
+            printWindow.document.close();
+            setTimeout(() => {
+              printWindow.focus();
+              printWindow.print();
+              Swal.close();
+            }, 500);
 
         }).catch(err => {
           console.error('[Matrika] exportItemPDF error:', err);
@@ -3665,6 +3642,7 @@
         });
         } catch(e) { console.error('[Matrika] exportItemPDF sync error:', e); Swal.fire('Error', e.message, 'error'); }
       }
+
 
 
       function exportPDF() {
