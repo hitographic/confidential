@@ -3601,86 +3601,66 @@
           // Render lampiran
           renderLampiran(d.lampiran || []);
 
-          // Load signature images via backend (CORS-safe base64)
-          async function loadSigsThenPDF() {
-            try {
-              const auditorImg = document.getElementById('auditorSavedSignImg');
-              const auditeeImg = document.getElementById('auditeeSavedSignImg');
-
-              // Collect signature file IDs
-              const sigFileIds = [];
-              if (d.auditorSignature) {
-                const m = d.auditorSignature.match(/id=([^&]+)/);
-                if (m) sigFileIds.push(m[1]);
-              }
-              if (d.auditeeSignature) {
-                const m = d.auditeeSignature.match(/id=([^&]+)/);
-                if (m) sigFileIds.push(m[1]);
-              }
-
-              if (sigFileIds.length > 0) {
-                Swal.update({ title: 'Memuat tanda tangan...', text: '' });
-                const sigRes = await fetch(GAS_URL, {
-                  method: 'POST',
-                  body: JSON.stringify({ action: 'fetchImages', fileIds: sigFileIds })
-                }).then(r => r.json());
-
-                if (sigRes.success && sigRes.images) {
-                  let idx = 0;
-                  if (d.auditorSignature) { auditorImg.src = sigRes.images[sigFileIds[idx]] || ''; idx++; }
-                  else { auditorImg.src = ''; }
-                  if (d.auditeeSignature) { auditeeImg.src = sigRes.images[sigFileIds[idx]] || ''; idx++; }
-                  else { auditeeImg.src = ''; }
-                } else {
-                  auditorImg.src = d.auditorSignature || '';
-                  auditeeImg.src = d.auditeeSignature || '';
-                }
-              } else {
-                auditorImg.src = '';
-                auditeeImg.src = '';
-              }
-
-              // Wait for images to render
-              await new Promise(r => setTimeout(r, 300));
-              await generatePDF();
-            } catch(e) {
-              console.error('[Matrika] loadSigs error:', e);
-              Swal.fire('Error', 'Gagal memuat tanda tangan: ' + e.message, 'error');
-            }
-          }
-
-          loadSigsThenPDF();
+          // All images (sigs + lampiran) are fetched in generatePDF via backend
+          generatePDF();
 
           async function generatePDF() {
             const lampiranArea = document.getElementById('lampiranArea');
             const lampiranWasHidden = lampiranArea.classList.contains('hidden');
 
-            // Pre-fetch all lampiran images via backend (CORS-safe)
+            // Pre-fetch ALL images (lampiran + signatures) as base64 via backend
             const lampiranItems = d.lampiran || [];
-            if (lampiranItems.length > 0) {
-              Swal.update({ title: 'Mengunduh foto lampiran...', text: `0/${lampiranItems.length} foto` });
-              // Extract fileIds from URLs
-              const fileIds = lampiranItems.map(item => {
-                const match = item.url.match(/id=([^&]+)/);
-                return match ? match[1] : null;
-              }).filter(Boolean);
+            const allFileIds = [];
+            if (d.auditorSignature) { const m = d.auditorSignature.match(/id=([^&]+)/); if (m) allFileIds.push(m[1]); }
+            if (d.auditeeSignature) { const m = d.auditeeSignature.match(/id=([^&]+)/); if (m) allFileIds.push(m[1]); }
+            lampiranItems.forEach(item => {
+              const m = (item.url || '').match(/id=([^&]+)/);
+              if (m) allFileIds.push(m[1]);
+            });
 
-              // Fetch all images via backend in one call
-              const imgRes = await fetch(GAS_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: 'fetchImages', fileIds: fileIds })
-              }).then(r => r.json());
-
-              if (imgRes.success) {
-                const imgs = document.querySelectorAll('#lampiranGrid .lampiran-item img');
-                fileIds.forEach((fid, i) => {
-                  if (imgs[i] && imgRes.images[fid]) {
-                    imgs[i].src = imgRes.images[fid];
-                  }
-                  Swal.update({ title: 'Mengunduh foto lampiran...', text: `${i+1}/${fileIds.length} foto` });
-                });
+            let allImages = {};
+            if (allFileIds.length > 0) {
+              Swal.update({ title: 'Mengunduh foto...', text: `0/${allFileIds.length} foto` });
+              try {
+                const imgRes = await fetch(GAS_URL, {
+                  method: 'POST',
+                  body: JSON.stringify({ action: 'fetchImages', fileIds: allFileIds })
+                }).then(r => r.json());
+                if (imgRes.success) allImages = imgRes.images || {};
+              } catch(e) {
+                console.error('[Matrika] fetchImages failed:', e);
               }
             }
+
+            // Set signature images to base64
+            let sigIdx = 0;
+            const auditorImg = document.getElementById('auditorSavedSignImg');
+            const auditeeImg = document.getElementById('auditeeSavedSignImg');
+            if (d.auditorSignature) { auditorImg.src = allImages[allFileIds[sigIdx]] || ''; sigIdx++; }
+            else { auditorImg.src = ''; }
+            if (d.auditeeSignature) { auditeeImg.src = allImages[allFileIds[sigIdx]] || ''; sigIdx++; }
+            else { auditeeImg.src = ''; }
+
+            // REBUILD lampiran grid with base64 (NOT Google Drive URLs)
+            const grid = document.getElementById('lampiranGrid');
+            if (lampiranItems.length > 0 && grid) {
+              grid.innerHTML = '';
+              lampiranItems.forEach((item, idx) => {
+                const m = (item.url || '').match(/id=([^&]+)/);
+                const fid = m ? m[1] : null;
+                const base64 = fid ? allImages[fid] : '';
+                const caption = item.caption || 'Lampiran ke-' + (idx + 1);
+                const div = document.createElement('div');
+                div.className = 'lampiran-item';
+                div.innerHTML = '<img src="' + (base64 || '') + '" alt="' + caption + '">' +
+                  '<div class="lampiran-caption">' + caption + '</div>';
+                grid.appendChild(div);
+              });
+              Swal.update({ title: 'Foto siap...', text: '' });
+            }
+
+            // Wait for images to render
+            await new Promise(r => setTimeout(r, 500));
 
             // Make modal + previewArea visible offscreen for html2canvas capture
             const modalPreview = document.getElementById('modalPreview');
@@ -3688,7 +3668,6 @@
             const origModalClass = modalPreview.className;
             const origPreviewStyle = previewArea.style.cssText;
 
-            // Show modal offscreen (html2canvas needs parent to NOT be display:none)
             modalPreview.classList.remove('hidden');
             modalPreview.style.position = 'absolute';
             modalPreview.style.left = '-9999px';
@@ -3719,9 +3698,6 @@
               lp.style.border = 'none';
               lp.style.margin = '0';
             }
-
-            // Wait for images to render
-            await new Promise(r => setTimeout(r, 500));
 
             Swal.update({ title: 'Membuat PDF...', text: 'Halaman 1: Pengamatan Internal Audit' });
             await new Promise(r => setTimeout(r, 200));
