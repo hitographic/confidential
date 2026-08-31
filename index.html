@@ -1194,6 +1194,42 @@
       function showModal(modalId) { document.getElementById(modalId).classList.remove('hidden'); }
       function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
 
+      function checkSignatureOnLogin() {
+        if (!currentUser.nik || currentUser.nik === 'guest') return;
+        fetch(GAS_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'getSignatureInfo', nik: currentUser.nik })
+        }).then(r => r.json()).then(res => {
+          if (res.success && res.exists) {
+            Swal.fire({
+              title: 'Tanda Tangan Terdaftar',
+              html: `<p style="font-size:14px; margin-bottom:8px;">Anda sudah memiliki tanda tangan digital.</p>
+                     <div style="text-align:left; font-size:12px; color:#64748b; background:#f8fafc; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
+                       <div><i class="fa-regular fa-calendar"></i> Dibuat: <b>${res.createdAt || '-'}</b></div>
+                       <div><i class="fa-solid fa-rotate"></i> Diperbarui: <b>${res.updatedAt || '-'}</b></div>
+                     </div>`,
+              icon: 'question',
+              showCancelButton: true,
+              confirmButtonText: '<i class="fa-solid fa-check"></i> Gunakan yang Sudah Ada',
+              cancelButtonText: '<i class="fa-solid fa-pen-nib"></i> Buat TTD Baru',
+              confirmButtonColor: '#10b981',
+              cancelButtonColor: '#6366f1',
+              reverseButtons: true
+            }).then(result => {
+              if (result.isConfirmed) {
+                Swal.fire({ icon: 'success', title: 'Menggunakan TTD yang sudah ada', timer: 1200, showConfirmButton: false });
+              } else {
+                openRegisterSignature();
+              }
+            });
+          } else {
+            openRegisterSignature();
+          }
+        }).catch(() => {
+          openRegisterSignature();
+        });
+      }
+
       function openRegisterSignature() {
         const statusCard = document.getElementById('sigStatusCard');
         statusCard.style.display = 'none';
@@ -1241,7 +1277,7 @@
               }
 
               changeState('stateMenu');
-              if (!localStorage.getItem('signature_' + currentUser.nik)) openRegisterSignature();
+              checkSignatureOnLogin();
             } else {
               Swal.fire('Gagal', res.message, 'error');
             }
