@@ -3407,13 +3407,24 @@
               }
             }
 
-            // Make previewArea visible offscreen for capture
+            // Make modal + previewArea visible offscreen for html2canvas capture
+            const modalPreview = document.getElementById('modalPreview');
             const previewArea = document.getElementById('previewArea');
+            const origModalClass = modalPreview.className;
             const origPreviewStyle = previewArea.style.cssText;
+
+            // Show modal offscreen (html2canvas needs parent to NOT be display:none)
+            modalPreview.classList.remove('hidden');
+            modalPreview.style.position = 'absolute';
+            modalPreview.style.left = '-9999px';
+            modalPreview.style.top = '0';
+            modalPreview.style.width = '100vw';
+            modalPreview.style.height = '100vh';
+            modalPreview.style.overflow = 'hidden';
+            modalPreview.style.zIndex = '-1';
+
             previewArea.style.display = 'block';
-            previewArea.style.position = 'absolute';
-            previewArea.style.left = '-9999px';
-            previewArea.style.top = '0';
+            previewArea.style.position = 'relative';
             previewArea.style.width = '794px';
             previewArea.style.height = '1123px';
             previewArea.style.overflow = 'hidden';
@@ -3422,12 +3433,10 @@
 
             let origLampiranStyle = '';
             let origLampiranPageStyle = '';
+            const lampiranArea = document.getElementById('lampiranArea');
             if (!lampiranWasHidden && lampiranItems.length > 0) {
               lampiranArea.style.display = 'block';
               origLampiranStyle = lampiranArea.style.cssText;
-              lampiranArea.style.position = 'absolute';
-              lampiranArea.style.left = '-9999px';
-              lampiranArea.style.top = '0';
               const lp = document.getElementById('lampiranPage');
               origLampiranPageStyle = lp.style.cssText;
               lp.style.width = '794px';
@@ -3477,6 +3486,8 @@
             }
 
             // Restore elements
+            modalPreview.className = origModalClass;
+            modalPreview.style.cssText = '';
             previewArea.style.cssText = origPreviewStyle;
             if (!lampiranWasHidden) {
               lampiranArea.style.cssText = origLampiranStyle;
