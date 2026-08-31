@@ -496,6 +496,27 @@ function handleGetSignatureInfo(nik) {
   }
 }
 
+function handleChangePassword(nik, oldPassword, newPassword) {
+  try {
+    const userSheet = getSheet("user");
+    if (!userSheet) return { success: false, message: "Sheet 'user' tidak ditemukan." };
+    
+    const data = userSheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]).trim() === String(nik).trim()) {
+        if (String(data[i][1]).trim() !== String(oldPassword).trim()) {
+          return { success: false, message: "Password lama salah!" };
+        }
+        userSheet.getRange(i + 1, 2).setValue(newPassword);
+        return { success: true, message: "Password berhasil diubah!" };
+      }
+    }
+    return { success: false, message: "User tidak ditemukan." };
+  } catch (error) {
+    return { success: false, message: "Error sistem: " + error.message };
+  }
+}
+
 function handleFetchImages(fileIds) {
   try {
     const results = {};
@@ -568,6 +589,9 @@ function doPost(e) {
         break;
       case "fetchImages":
         result = handleFetchImages(postData.fileIds);
+        break;
+      case "changePassword":
+        result = handleChangePassword(postData.nik, postData.oldPassword, postData.newPassword);
         break;
       default:
         result = { success: false, message: "Action tidak dikenal." };

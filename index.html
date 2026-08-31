@@ -557,6 +557,7 @@
     <div style="display: flex; gap: 10px; align-items: center;">
       <span id="navAuditorName" style="font-size: 13px; font-weight: 500; opacity: 0.8;"></span>
       <button class="btn btn-outline" style="color: white; border-color: rgba(255,255,255,0.15); font-size: 12px;" onclick="openRegisterSignature()"><i class="fa-solid fa-pen-nib"></i> Ganti TTD</button>
+      <button class="btn btn-outline" style="color: white; border-color: rgba(255,255,255,0.15); font-size: 12px;" onclick="openChangePassword()"><i class="fa-solid fa-lock"></i> Ganti Password</button>
       <button class="btn btn-outline" style="color: white; border-color: rgba(255,255,255,0.15); font-size: 12px;" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Keluar</button>
     </div>
   </nav>
@@ -1064,6 +1065,59 @@
       </div>
     </div>
 
+  <!-- MODAL: GANTI PASSWORD -->
+  <div id="modalChangePassword" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width: 420px;">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #f43f5e, #e11d48); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+          <i class="fa-solid fa-lock" style="color: white; font-size: 24px;"></i>
+        </div>
+        <h3 style="margin: 0 0 4px 0; font-size: 18px;">Ganti Password</h3>
+        <p style="margin: 0; font-size: 13px; color: var(--text-light);">Masukkan password lama dan password baru</p>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="font-size: 12px; font-weight: 600; color: var(--text-dark); display: block; margin-bottom: 6px;">Password Lama</label>
+        <input type="password" id="cpOldPassword" placeholder="Masukkan password lama"
+          style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; box-sizing: border-box; transition: border-color 0.2s;"
+          onfocus="this.style.borderColor='var(--secondary)'" onblur="this.style.borderColor='#e2e8f0'">
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="font-size: 12px; font-weight: 600; color: var(--text-dark); display: block; margin-bottom: 6px;">Password Baru</label>
+        <input type="password" id="cpNewPassword" placeholder="Masukkan password baru"
+          style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; box-sizing: border-box; transition: border-color 0.2s;"
+          onfocus="this.style.borderColor='var(--secondary)'" onblur="this.style.borderColor='#e2e8f0'" oninput="validatePasswordStrength(this.value)">
+        <div id="cpStrengthIndicator" style="margin-top: 6px; font-size: 11px; display: none;">
+          <div style="display: flex; gap: 4px; margin-bottom: 4px;">
+            <div id="cpBar1" style="flex:1; height:3px; border-radius:2px; background:#e2e8f0; transition: background 0.2s;"></div>
+            <div id="cpBar2" style="flex:1; height:3px; border-radius:2px; background:#e2e8f0; transition: background 0.2s;"></div>
+            <div id="cpBar3" style="flex:1; height:3px; border-radius:2px; background:#e2e8f0; transition: background 0.2s;"></div>
+          </div>
+          <span id="cpStrengthText"></span>
+        </div>
+        <div id="cpRules" style="margin-top: 8px; font-size: 11px; color: #94a3b8; line-height: 1.8;">
+          <div id="cpRuleLen"><i class="fa-regular fa-circle"></i> 8-20 karakter</div>
+          <div id="cpRuleUpper"><i class="fa-regular fa-circle"></i> minimal 1 huruf besar (A-Z)</div>
+          <div id="cpRuleLower"><i class="fa-regular fa-circle"></i> minimal 1 huruf kecil (a-z)</div>
+          <div id="cpRuleSpecial"><i class="fa-regular fa-circle"></i> minimal 1 karakter unik (!@#$%^&*)</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label style="font-size: 12px; font-weight: 600; color: var(--text-dark); display: block; margin-bottom: 6px;">Ulangi Password Baru</label>
+        <input type="password" id="cpConfirmPassword" placeholder="Ulangi password baru"
+          style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; box-sizing: border-box; transition: border-color 0.2s;"
+          onfocus="this.style.borderColor='var(--secondary)'" onblur="this.style.borderColor='#e2e8f0'" oninput="checkPasswordMatch()">
+        <div id="cpMatchMsg" style="margin-top: 4px; font-size: 11px; display: none;"></div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn btn-outline" onclick="closeModal('modalChangePassword')">Batal</button>
+        <button class="btn btn-primary" onclick="submitChangePassword()"><i class="fa-solid fa-check"></i> Simpan Password</button>
+      </div>
+    </div>
+  </div>
 
     <script>
       // CONFIG
@@ -1227,6 +1281,118 @@
           }
         }).catch(() => {
           openRegisterSignature();
+        });
+      }
+
+      function openChangePassword() {
+        document.getElementById('cpOldPassword').value = '';
+        document.getElementById('cpNewPassword').value = '';
+        document.getElementById('cpConfirmPassword').value = '';
+        document.getElementById('cpStrengthIndicator').style.display = 'none';
+        document.getElementById('cpRules').querySelectorAll('div').forEach(d => {
+          d.innerHTML = d.innerHTML.replace(/fa-circle-check/g, 'fa-regular fa-circle').replace(/fa-regular fa-circle/g, 'fa-regular fa-circle');
+          d.style.color = '#94a3b8';
+        });
+        document.getElementById('cpMatchMsg').style.display = 'none';
+        showModal('modalChangePassword');
+      }
+
+      function validatePasswordStrength(pw) {
+        const indicator = document.getElementById('cpStrengthIndicator');
+        indicator.style.display = 'block';
+        const len = pw.length >= 8 && pw.length <= 20;
+        const upper = /[A-Z]/.test(pw);
+        const lower = /[a-z]/.test(pw);
+        const special = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(pw);
+        const score = [len, upper, lower, special].filter(Boolean).length;
+
+        const bars = [document.getElementById('cpBar1'), document.getElementById('cpBar2'), document.getElementById('cpBar3')];
+        const text = document.getElementById('cpStrengthText');
+        const colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981'];
+        const labels = ['Lemah', 'Sedang', 'Kuat', 'Sangat Kuat'];
+
+        bars.forEach((b, i) => { b.style.background = i < score ? colors[score - 1] : '#e2e8f0'; });
+        text.textContent = pw.length > 0 ? labels[score - 1] || '' : '';
+        text.style.color = colors[score - 1] || '#94a3b8';
+
+        const setRule = (id, ok) => {
+          const el = document.getElementById(id);
+          el.innerHTML = ok
+            ? '<i class="fa-solid fa-circle-check" style="color:#10b981;"></i> ' + el.textContent.replace(/^[^\s]+\s/, '')
+            : '<i class="fa-regular fa-circle"></i> ' + el.textContent.replace(/^[^\s]+\s/, '');
+          el.style.color = ok ? '#10b981' : '#94a3b8';
+        };
+        setRule('cpRuleLen', len);
+        setRule('cpRuleUpper', upper);
+        setRule('cpRuleLower', lower);
+        setRule('cpRuleSpecial', special);
+
+        // Check confirm match
+        const confirm = document.getElementById('cpConfirmPassword').value;
+        const matchMsg = document.getElementById('cpMatchMsg');
+        if (confirm.length > 0) {
+          matchMsg.style.display = 'block';
+          if (confirm === pw) {
+            matchMsg.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#10b981;"></i> Cocok';
+            matchMsg.style.color = '#10b981';
+          } else {
+            matchMsg.innerHTML = '<i class="fa-solid fa-circle-xmark" style="color:#ef4444;"></i> Tidak cocok';
+            matchMsg.style.color = '#ef4444';
+          }
+        }
+      }
+
+      function checkPasswordMatch() {
+        const newPw = document.getElementById('cpNewPassword').value;
+        const confirmPw = document.getElementById('cpConfirmPassword').value;
+        const matchMsg = document.getElementById('cpMatchMsg');
+        if (confirmPw.length > 0) {
+          matchMsg.style.display = 'block';
+          if (confirmPw === newPw) {
+            matchMsg.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#10b981;"></i> Cocok';
+            matchMsg.style.color = '#10b981';
+          } else {
+            matchMsg.innerHTML = '<i class="fa-solid fa-circle-xmark" style="color:#ef4444;"></i> Tidak cocok';
+            matchMsg.style.color = '#ef4444';
+          }
+        } else {
+          matchMsg.style.display = 'none';
+        }
+      }
+
+      function submitChangePassword() {
+        const oldPw = document.getElementById('cpOldPassword').value.trim();
+        const newPw = document.getElementById('cpNewPassword').value.trim();
+        const confirmPw = document.getElementById('cpConfirmPassword').value.trim();
+
+        if (!oldPw) return Swal.fire('Peringatan', 'Masukkan password lama', 'warning');
+        if (!newPw) return Swal.fire('Peringatan', 'Masukkan password baru', 'warning');
+
+        // Validate strength
+        const len = newPw.length >= 8 && newPw.length <= 20;
+        const upper = /[A-Z]/.test(newPw);
+        const lower = /[a-z]/.test(newPw);
+        const special = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(newPw);
+        if (!len || !upper || !lower || !special) {
+          return Swal.fire('Password Lemah', 'Password harus 8-20 karakter, huruf besar, huruf kecil, dan karakter unik (!@#$%^&*)', 'warning');
+        }
+        if (newPw !== confirmPw) return Swal.fire('Peringatan', 'Konfirmasi password tidak cocok', 'warning');
+        if (newPw === oldPw) return Swal.fire('Peringatan', 'Password baru harus berbeda dari password lama', 'warning');
+
+        Swal.fire({ title: 'Mengubah password...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+        fetch(GAS_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'changePassword', nik: currentUser.nik, oldPassword: oldPw, newPassword: newPw })
+        }).then(r => r.json()).then(res => {
+          if (res.success) {
+            closeModal('modalChangePassword');
+            Swal.fire({ icon: 'success', title: 'Password berhasil diubah!', timer: 1500, showConfirmButton: false });
+          } else {
+            Swal.fire('Gagal', res.message, 'error');
+          }
+        }).catch(() => {
+          Swal.fire('Error', 'Gagal terhubung ke server', 'error');
         });
       }
 
