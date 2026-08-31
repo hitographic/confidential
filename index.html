@@ -3542,101 +3542,103 @@
           if (!res.success) { Swal.fire('Gagal', res.message, 'error'); return; }
           const d = res.data;
 
-          // === PAGE 1: Populate previewArea exactly like previewData() ===
-          const cbHtml = `
-                <table style="width:100%; border:none; font-weight:bold; font-size: 14px;">
-                    <tr>
-                        <td style="border:none; padding:2px;"><div class="check-box">${d.kategori === 'Halal' ? 'V' : '&nbsp;'}</div> Halal</td>
-                        <td style="border:none; padding:2px;"><div class="check-box">${d.kategori === 'SMK3' ? 'V' : '&nbsp;'}</div> SMK3</td>
-                        <td style="border:none; padding:2px;"><div class="check-box" style="width:40px;">&nbsp;</div> .........</td>
-                    </tr>
-                    <tr>
-                        <td style="border:none; padding:2px;"><div class="check-box">${d.kategori === 'ISO' ? 'V' : '&nbsp;'}</div> ISO</td>
-                        <td style="border:none; padding:2px;"><div class="check-box">${d.kategori === 'SML' ? 'V' : '&nbsp;'}</div> SML</td>
-                        <td style="border:none; padding:2px;"></td>
-                    </tr>
-                    <tr>
-                        <td style="border:none; padding:2px;"><div class="check-box">${d.kategori === 'FSSC' ? 'V' : '&nbsp;'}</div> FSSC</td>
-                        <td style="border:none; padding:2px;"><div class="check-box">${d.kategori === 'SME' ? 'V' : '&nbsp;'}</div> SME</td>
-                        <td style="border:none; padding:2px;"></td>
-                    </tr>
-                </table>`;
-            document.getElementById('previewCheckboxes').innerHTML = cbHtml;
-            document.getElementById('prevDept').innerText = d.departemen;
-            const months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-            const dt = new Date(d.tanggal);
-            document.getElementById('prevDate').innerText = dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
+          // === Populate previewArea exactly like previewData() ===
+          var cbMarkH = (d.kategori === 'Halal') ? 'V' : '&nbsp;';
+          var cbMarkS = (d.kategori === 'SMK3') ? 'V' : '&nbsp;';
+          var cbMarkI = (d.kategori === 'ISO') ? 'V' : '&nbsp;';
+          var cbMarkSm = (d.kategori === 'SML') ? 'V' : '&nbsp;';
+          var cbMarkF = (d.kategori === 'FSSC') ? 'V' : '&nbsp;';
+          var cbMarkSe = (d.kategori === 'SME') ? 'V' : '&nbsp;';
+          var cbHtml = '<table style="width:100%;border:none;font-weight:bold;font-size:14px;">' +
+            '<tr>' +
+            '<td style="border:none;padding:2px;"><div class="check-box">' + cbMarkH + '</div> Halal</td>' +
+            '<td style="border:none;padding:2px;"><div class="check-box">' + cbMarkS + '</div> SMK3</td>' +
+            '<td style="border:none;padding:2px;"><div class="check-box" style="width:40px;">&nbsp;</div> .........</td>' +
+            '</tr>' +
+            '<tr>' +
+            '<td style="border:none;padding:2px;"><div class="check-box">' + cbMarkI + '</div> ISO</td>' +
+            '<td style="border:none;padding:2px;"><div class="check-box">' + cbMarkSm + '</div> SML</td>' +
+            '<td style="border:none;padding:2px;"></td>' +
+            '</tr>' +
+            '<tr>' +
+            '<td style="border:none;padding:2px;"><div class="check-box">' + cbMarkF + '</div> FSSC</td>' +
+            '<td style="border:none;padding:2px;"><div class="check-box">' + cbMarkSe + '</div> SME</td>' +
+            '<td style="border:none;padding:2px;"></td>' +
+            '</tr></table>';
+          document.getElementById('previewCheckboxes').innerHTML = cbHtml;
+          document.getElementById('prevDept').innerText = d.departemen;
+          var months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+          var dt = new Date(d.tanggal);
+          document.getElementById('prevDate').innerText = dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
 
-            const tbody = document.getElementById('previewTableBody');
-            tbody.innerHTML = '';
-            let counterPreview = 1;
-            d.checklistData.forEach(row => {
-              const tr = document.createElement('tr');
-              tr.style.height = '1px';
-              if (row.type == 1 || row.type == 2 || row.type == 3) return;
-              if (!row.hasilPengamatan || row.hasilPengamatan.trim() === '') return;
-              tr.innerHTML = `
-                  <td style="text-align:center; font-weight:bold;">${counterPreview++}</td>
-                  <td style="padding-left: 10px;">${row.hasilPengamatan || ''}</td>
-                  <td style="text-align:center;">${row.kriteria || '-'}</td>
-                  <td style="text-align:center;">${row.kategoriVal || '-'}</td>`;
-              tbody.appendChild(tr);
-            });
-            const fillerTr = document.createElement('tr');
-            fillerTr.style.height = '100%';
-            fillerTr.innerHTML = '<td></td><td></td><td></td><td></td>';
-            tbody.appendChild(fillerTr);
+          var tbody = document.getElementById('previewTableBody');
+          tbody.innerHTML = '';
+          var counterP = 1;
+          (d.checklistData || []).forEach(function(row) {
+            if (row.type == 1 || row.type == 2 || row.type == 3) return;
+            if (!row.hasilPengamatan || row.hasilPengamatan.trim() === '') return;
+            var tr = document.createElement('tr');
+            tr.style.height = '1px';
+            tr.innerHTML = '<td style="text-align:center;font-weight:bold;">' + (counterP++) + '</td>' +
+              '<td style="padding-left:10px;">' + (row.hasilPengamatan || '') + '</td>' +
+              '<td style="text-align:center;">' + (row.kriteria || '-') + '</td>' +
+              '<td style="text-align:center;">' + (row.kategoriVal || '-') + '</td>';
+            tbody.appendChild(tr);
+          });
+          var fillerTr = document.createElement('tr');
+          fillerTr.style.height = '100%';
+          fillerTr.innerHTML = '<td></td><td></td><td></td><td></td>';
+          tbody.appendChild(fillerTr);
 
-            document.getElementById('prevAuditorName').innerText = d.auditorName;
-            document.getElementById('prevAuditeeName').innerText = d.auditeeName;
-            document.getElementById('auditorSavedSignImg').src = d.auditorSignature || '';
-            document.getElementById('auditeeSavedSignImg').src = d.auditeeSignature || '';
-            document.getElementById('prevHash').innerText = d.hashIntegritas || "Belum disubmit";
+          document.getElementById('prevAuditorName').innerText = d.auditorName;
+          document.getElementById('prevAuditeeName').innerText = d.auditeeName;
+          document.getElementById('auditorSavedSignImg').src = d.auditorSignature || '';
+          document.getElementById('auditeeSavedSignImg').src = d.auditeeSignature || '';
+          document.getElementById('prevHash').innerText = d.hashIntegritas || "Belum disubmit";
 
-            // === PAGE 2: Populate lampiranPage exactly like renderLampiran() ===
-            renderLampiran(d.lampiran || []);
+          // === Populate lampiranPage ===
+          renderLampiran(d.lampiran || []);
 
-            // === Grab actual DOM innerHTML ===
-            const page1Html = document.getElementById('previewArea').innerHTML;
-            const lampiranArea = document.getElementById('lampiranArea');
-            const hasLampiran = !lampiranArea.classList.contains('hidden');
-            const page2Html = hasLampiran ? document.getElementById('lampiranPage').innerHTML : '';
+          // === Grab EXACT innerHTML from live DOM ===
+          var page1Content = document.getElementById('previewArea').innerHTML;
+          var lampiranArea = document.getElementById('lampiranArea');
+          var hasLampiran = !lampiranArea.classList.contains('hidden');
+          var page2Content = hasLampiran ? document.getElementById('lampiranPage').innerHTML : '';
 
-            // === Build standalone HTML with same CSS ===
-            const printHtml = '<!doctype html><html><head><meta charset="utf-8"><style>' +
-              '@page{size:A4 portrait;margin:0}' +
-              '*{box-sizing:border-box}' +
-              'body{font-family:"Times New Roman",Times,serif;font-size:13px;line-height:1.2;margin:0;color:#000}' +
-              '#previewArea{background:white;color:black;font-family:"Times New Roman",Times,serif;font-size:13px;width:100%;height:100%;max-height:100%;overflow:hidden;display:flex;flex-direction:column;padding:0;margin:0;border:none;}' +
-              '#previewArea *{font-family:"Times New Roman",Times,serif !important;}' +
-              '.check-box{display:inline-block;width:25px;height:18px;border:2px solid black;text-align:center;line-height:18px;vertical-align:middle;margin-right:5px;}' +
-              '#previewTableBody td{border-right:2px solid black;border-bottom:none;border-top:none;padding:10px;vertical-align:top;}' +
-              '#previewTableBody td:last-child{border-right:none;}' +
-              '#lampiranPage{background:white;padding:20px;color:black;font-family:"Times New Roman",Times,serif;font-size:13px;width:100%;min-height:100%;box-sizing:border-box;border:2px solid black;}' +
-              '#lampiranPage *{font-family:"Times New Roman",Times,serif !important;}' +
-              '.lampiran-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;padding:10px 0;}' +
-              '.lampiran-item{text-align:center;}' +
-              '.lampiran-item img{width:100%;aspect-ratio:1;object-fit:cover;border:1px solid #ccc;border-radius:4px;}' +
-              '.lampiran-item .lampiran-caption{font-size:11px;margin-top:4px;font-style:italic;color:#333;}' +
-              '</style></head><body>' +
-              page1Html +
-              (hasLampiran ? '<div style="page-break-before:always;">' + page2Html + '</div>' : '') +
-              '</body></html>';
+          // === Build standalone HTML — CSS identical to preview ===
+          var pStyle = '@page{size:A4 portrait;margin:0}' +
+            '*{box-sizing:border-box;margin:0;padding:0}' +
+            'body{font-family:"Times New Roman",Times,serif;font-size:13px;line-height:1.2;color:#000;background:#fff}' +
+            '#previewArea{width:100vw;height:100vh;padding:0;margin:0;background:white;overflow:hidden;page-break-after:always}' +
+            '.check-box{display:inline-block;width:25px;height:18px;border:2px solid black;text-align:center;line-height:18px;vertical-align:middle;margin-right:5px}' +
+            '#previewTableBody td{border-right:2px solid black;border-bottom:none;border-top:none;padding:10px;vertical-align:top}' +
+            '#previewTableBody td:last-child{border-right:none}' +
+            '#lampiranPage{background:white;padding:20px;color:black;font-family:"Times New Roman",Times,serif;font-size:13px;width:100vw;min-height:100vh;box-sizing:border-box;border:2px solid black;page-break-before:always}' +
+            '#lampiranPage *{font-family:"Times New Roman",Times,serif !important}' +
+            '.lampiran-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;padding:10px 0}' +
+            '.lampiran-item{text-align:center}' +
+            '.lampiran-item img{width:100%;aspect-ratio:1;object-fit:cover;border:1px solid #ccc;border-radius:4px}' +
+            '.lampiran-item .lampiran-caption{font-size:11px;margin-top:4px;font-style:italic;color:#333}';
 
-            const printWindow = window.open('', '_blank');
-            if (!printWindow) {
-              Swal.fire('Error', 'Browser memblokir pop-up. Izinkan pop-up untuk situs ini.', 'error');
-              return;
-            }
-            printWindow.document.write(printHtml);
-            printWindow.document.close();
-            setTimeout(() => {
-              printWindow.focus();
-              printWindow.print();
-              Swal.close();
-            }, 500);
+          var printHtml = '<!doctype html><html><head><meta charset="utf-8"><style>' + pStyle + '</style></head><body>' +
+            '<div id="previewArea">' + page1Content + '</div>' +
+            (hasLampiran ? '<div id="lampiranPage">' + page2Content + '</div>' : '') +
+            '</body></html>';
 
-        }).catch(err => {
+          var printWindow = window.open('', '_blank');
+          if (!printWindow) {
+            Swal.fire('Error', 'Browser memblokir pop-up. Izinkan pop-up untuk situs ini.', 'error');
+            return;
+          }
+          printWindow.document.write(printHtml);
+          printWindow.document.close();
+          setTimeout(function() {
+            printWindow.focus();
+            printWindow.print();
+            Swal.close();
+          }, 500);
+
+        }).catch(function(err) {
           console.error('[Matrika] exportItemPDF error:', err);
           Swal.fire('Error', 'Gagal memuat data PDF.', 'error');
         });
