@@ -1503,7 +1503,7 @@
         container.innerHTML = '<div style="text-align:center; padding: 20px;"><i class="fa-solid fa-spinner fa-spin fa-2x text-light"></i><br>Memuat data...</div>';
 
         fetch(GAS_URL, {
-          method: 'POST', headers: {'Content-Type': 'application/json'},
+          method: 'POST',
           body: JSON.stringify({ action: 'getList', auditorName: currentUser.nama, kategori: currentCategory })
         })
           .then(res => res.json())
@@ -2629,7 +2629,7 @@
         try {
         Swal.fire({ title: 'Memuat Preview...', didOpen: () => Swal.showLoading() });
         fetch(GAS_URL, {
-          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ action: 'getDetail', id: id })
+          method: 'POST', body: JSON.stringify({ action: 'getDetail', id: id })
         }).then(res => res.json()).then(res => {
           if (res.success) {
             Swal.close();
@@ -3516,7 +3516,7 @@
         try {
         Swal.fire({ title: 'Memuat data...', text: 'Mengambil data dari server', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         fetch(GAS_URL, {
-          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ action: 'getDetail', id: id })
+          method: 'POST', body: JSON.stringify({ action: 'getDetail', id: id })
         }).then(res => res.json()).then(res => {
           if (!res.success) { Swal.fire('Gagal', res.message, 'error'); return; }
           const d = res.data;
