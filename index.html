@@ -3576,11 +3576,11 @@
             let lampiranImgs = '';
             lampiranItems.forEach((item, idx) => {
               const caption = item.caption || 'Lampiran ke-' + (idx + 1);
-              lampiranImgs += '<div style="text-align:center;"><img src="' + (item.url || '') + '" style="width:100%;aspect-ratio:1;object-fit:cover;border:1px solid #ccc;border-radius:4px;" /><div style="font-size:11px;margin-top:4px;font-style:italic;color:#333;">' + caption + '</div></div>';
+              lampiranImgs += '<div style="text-align:center;"><img src="' + (item.url || '') + '" style="max-width:100%;border:1px solid #ccc;border-radius:4px;" /><div style="font-size:11px;margin-top:4px;font-style:italic;color:#333;">' + caption + '</div></div>';
             });
-            lampiranHtml = '<div style="page-break-before:always;background:white;padding:20px;color:black;font-family:\'Times New Roman\',Times,serif;font-size:13px;min-height:287mm;box-sizing:border-box;border:2px solid black;">' +
+            lampiranHtml = '<div style="page-break-before:always;background:white;padding:20px;color:black;font-family:\'Times New Roman\',Times,serif;font-size:13px;min-height:287mm;box-sizing:border-box;">' +
               '<h3 style="text-align:center;font-weight:bold;margin-bottom:15px;font-size:16px;text-decoration:underline;padding-top:10px;">LAMPIRAN</h3>' +
-              '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:15px;padding:10px 0;">' + lampiranImgs + '</div></div>';
+              '<div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;padding:10px 0;">' + lampiranImgs + '</div></div>';
           }
 
           // Build full standalone HTML
@@ -3589,7 +3589,7 @@
           const hashText = d.hashIntegritas || 'Belum disubmit';
 
           const html = '<!doctype html><html><head><meta charset="utf-8"><style>' +
-            '@page{size:A4 portrait;margin:5mm}' +
+            '@page{size:A4 portrait;margin:0}' +
             '*{box-sizing:border-box}' +
             'body{font-family:"Times New Roman",Times,serif;font-size:13px;line-height:1.2;margin:0;color:#000}' +
             '.page-frame{border:2px solid #000;min-height:287mm;padding:0;}' +
