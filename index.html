@@ -3538,9 +3538,9 @@
         Swal.fire({ title: 'Memuat data...', text: 'Mengambil data dari server', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         fetch(GAS_URL, {
           method: 'POST', body: JSON.stringify({ action: 'getDetail', id: id })
-        }).then(res => res.json()).then(res => {
+        }).then(function(res) { return res.json(); }).then(function(res) {
           if (!res.success) { Swal.fire('Gagal', res.message, 'error'); return; }
-          const d = res.data;
+          var d = res.data;
 
           // === Populate previewArea exactly like previewData() ===
           var cbMarkH = (d.kategori === 'Halal') ? 'V' : '&nbsp;';
@@ -3599,44 +3599,112 @@
           // === Populate lampiranPage ===
           renderLampiran(d.lampiran || []);
 
-          // === Grab EXACT innerHTML from live DOM ===
-          var page1Content = document.getElementById('previewArea').innerHTML;
-          var lampiranArea = document.getElementById('lampiranArea');
-          var hasLampiran = !lampiranArea.classList.contains('hidden');
-          var page2Content = hasLampiran ? document.getElementById('lampiranPage').innerHTML : '';
+          // === Collect ALL Google Drive URLs → fetch as base64 via GAS ===
+          var urls = [];
+          if (d.auditorSignature && d.auditorSignature.indexOf('drive.google.com') !== -1) urls.push(d.auditorSignature);
+          if (d.auditeeSignature && d.auditeeSignature.indexOf('drive.google.com') !== -1) urls.push(d.auditeeSignature);
+          (d.lampiran || []).forEach(function(item) {
+            if (item.url && item.url.indexOf('drive.google.com') !== -1) urls.push(item.url);
+          });
+          urls = urls.filter(function(u, i, a) { return a.indexOf(u) === i; });
 
-          // === Build standalone HTML — CSS identical to preview ===
-          var pStyle =             '@page{size:A4 portrait;margin:0.19in}' +
-            '*{box-sizing:border-box;margin:0;padding:0}' +
-            'body{font-family:"Times New Roman",Times,serif;font-size:13px;line-height:1.2;color:#000;background:#fff}' +
-            '#previewArea{width:100vw;height:100vh;padding:0;margin:0;background:white;overflow:hidden;page-break-after:always;display:flex;flex-direction:column}' +
-            '.check-box{display:inline-block;width:25px;height:18px;border:2px solid black;text-align:center;line-height:18px;vertical-align:middle;margin-right:5px}' +
-            '#previewTableBody td{border-right:2px solid black;border-bottom:none;border-top:none;padding:10px;vertical-align:top}' +
-            '#previewTableBody td:last-child{border-right:none}' +
-            '#lampiranPage{background:white;padding:20px;color:black;font-family:"Times New Roman",Times,serif;font-size:13px;width:100vw;min-height:100vh;box-sizing:border-box;border:2px solid black;page-break-before:always}' +
-            '#lampiranPage *{font-family:"Times New Roman",Times,serif !important}' +
-            '.lampiran-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;padding:10px 0}' +
-            '.lampiran-item{text-align:center}' +
-            '.lampiran-item img{width:100%;aspect-ratio:1;object-fit:cover;border:1px solid #ccc;border-radius:4px}' +
-            '.lampiran-item .lampiran-caption{font-size:11px;margin-top:4px;font-style:italic;color:#333}';
-
-          var printHtml = '<!doctype html><html><head><meta charset="utf-8"><style>' + pStyle + '</style></head><body>' +
-            '<div id="previewArea">' + page1Content + '</div>' +
-            (hasLampiran ? '<div id="lampiranPage">' + page2Content + '</div>' : '') +
-            '</body></html>';
-
-          var printWindow = window.open('', '_blank');
-          if (!printWindow) {
-            Swal.fire('Error', 'Browser memblokir pop-up. Izinkan pop-up untuk situs ini.', 'error');
-            return;
+          function toBase64(url) {
+            return fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'fetchImages', urls: [url] }) })
+              .then(function(r) { return r.json(); })
+              .then(function(r) { return (r.data && r.data[0]) || url; });
           }
-          printWindow.document.write(printHtml);
-          printWindow.document.close();
-          setTimeout(function() {
-            printWindow.focus();
-            printWindow.print();
-            Swal.close();
-          }, 500);
+
+          var chain = Promise.resolve();
+          var base64Map = {};
+          urls.forEach(function(url) {
+            chain = chain.then(function() {
+              return toBase64(url).then(function(b64) { base64Map[url] = b64; });
+            });
+          });
+
+          chain.then(function() {
+            Swal.fire({ title: 'Generating PDF...', text: 'Memproses dokumen', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
+
+            // === Clone previewArea & lampiranPage, replace URLs with base64 ===
+            var clone1 = document.getElementById('previewArea').cloneNode(true);
+            var clone2 = document.getElementById('lampiranPage').cloneNode(true);
+
+            function replaceUrls(el) {
+              el.querySelectorAll('img').forEach(function(img) {
+                var src = img.getAttribute('src');
+                if (src && base64Map[src]) img.setAttribute('src', base64Map[src]);
+              });
+            }
+            replaceUrls(clone1);
+            replaceUrls(clone2);
+
+            // === Build hidden container with exact preview CSS ===
+            var container = document.createElement('div');
+            container.style.cssText = 'position:fixed;left:0;top:0;width:794px;visibility:hidden;z-index:-1;background:white;';
+            container.appendChild(clone1);
+            clone1.style.cssText = 'width:794px;height:1123px;background:white;overflow:hidden;display:flex;flex-direction:column;padding:0;margin:0;font-family:"Times New Roman",Times,serif;font-size:13px;color:#000;';
+            var hasLampiran = !document.getElementById('lampiranArea').classList.contains('hidden');
+            if (hasLampiran) {
+              container.appendChild(clone2);
+              clone2.style.cssText = 'width:794px;min-height:1123px;background:white;padding:20px;color:black;font-family:"Times New Roman",Times,serif;font-size:13px;box-sizing:border-box;border:2px solid black;margin-top:20px;';
+            }
+            document.body.appendChild(container);
+
+            // === Render with html2canvas ===
+            html2canvas(container, {
+              scale: 2,
+              useCORS: true,
+              backgroundColor: '#ffffff',
+              width: 794,
+              windowWidth: 794
+            }).then(function(canvas) {
+              document.body.removeChild(container);
+
+              // === Generate PDF with jsPDF ===
+              var pdf = new jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+              var pageW = 210;
+              var pageH = 297;
+              var margin = 0.19 * 25.4;
+              var contentW = pageW - (margin * 2);
+              var contentH = pageH - (margin * 2);
+              var imgW = canvas.width;
+              var imgH = canvas.height;
+              var slicedH = (contentW / imgW) * imgH;
+              var totalPages = Math.ceil(imgH / slicedH);
+
+              for (var i = 0; i < totalPages; i++) {
+                if (i > 0) pdf.addPage();
+                var srcY = (i * slicedH * imgW) / contentW;
+                var srcH = Math.min(slicedH, imgH - srcY);
+                var drawH = (srcH / imgW) * contentW;
+                var pageCanvas = document.createElement('canvas');
+                pageCanvas.width = imgW;
+                pageCanvas.height = srcH;
+                var ctx = pageCanvas.getContext('2d');
+                ctx.drawImage(canvas, 0, srcY, imgW, srcH, 0, 0, imgW, srcH);
+                var pageData = pageCanvas.toDataURL('image/jpeg', 0.95);
+                pdf.addImage(pageData, 'JPEG', margin, margin, contentW, drawH);
+              }
+
+              // === Download with custom filename ===
+              var filename = (d.departemen || 'Dept') + '-' + (d.auditorName || 'Auditor') + '-' + (d.auditeeName || 'Auditee') + '-';
+              var dd = String(dt.getDate()).padStart(2, '0');
+              var mm = String(dt.getMonth() + 1).padStart(2, '0');
+              var yyyy = dt.getFullYear();
+              filename += dd + mm + yyyy + '.pdf';
+              pdf.save(filename);
+              Swal.close();
+
+            }).catch(function(err) {
+              console.error('[Matrika] html2canvas error:', err);
+              document.body.removeChild(container);
+              Swal.fire('Error', 'Gagal generate PDF: ' + err.message, 'error');
+            });
+
+          }).catch(function(err) {
+            console.error('[Matrika] fetchImages error:', err);
+            Swal.fire('Error', 'Gagal memuat gambar: ' + err.message, 'error');
+          });
 
         }).catch(function(err) {
           console.error('[Matrika] exportItemPDF error:', err);
@@ -3644,8 +3712,6 @@
         });
         } catch(e) { console.error('[Matrika] exportItemPDF sync error:', e); Swal.fire('Error', e.message, 'error'); }
       }
-
-
 
       function exportPDF() {
         // Menggunakan fitur print bawaan browser
