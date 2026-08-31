@@ -2685,8 +2685,6 @@
             document.getElementById('prevAuditorName').innerText = d.auditorName;
             document.getElementById('prevAuditeeName').innerText = d.auditeeName;
 
-            document.getElementById('auditorSavedSignImg').src = d.auditorSignature || '';
-            document.getElementById('auditeeSavedSignImg').src = d.auditeeSignature || '';
             document.getElementById('prevHash').innerText = d.hashIntegritas || "Belum disubmit";
 
             // Render lampiran
@@ -2694,7 +2692,30 @@
 
             document.getElementById('btnSimpanPreview').style.display = 'none';
 
-            showModal('modalPreview');
+            // Load signature images via backend (CORS-safe)
+            const sigFileIds = [];
+            if (d.auditorSignature) { const m = d.auditorSignature.match(/id=([^&]+)/); if (m) sigFileIds.push(m[1]); }
+            if (d.auditeeSignature) { const m = d.auditeeSignature.match(/id=([^&]+)/); if (m) sigFileIds.push(m[1]); }
+
+            if (sigFileIds.length > 0) {
+              fetch(GAS_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'fetchImages', fileIds: sigFileIds })
+              }).then(r => r.json()).then(sigRes => {
+                let idx = 0;
+                if (d.auditorSignature) { document.getElementById('auditorSavedSignImg').src = (sigRes.images && sigRes.images[sigFileIds[idx]]) || d.auditorSignature; idx++; }
+                if (d.auditeeSignature) { document.getElementById('auditeeSavedSignImg').src = (sigRes.images && sigRes.images[sigFileIds[idx]]) || d.auditeeSignature; idx++; }
+                showModal('modalPreview');
+              }).catch(() => {
+                document.getElementById('auditorSavedSignImg').src = d.auditorSignature || '';
+                document.getElementById('auditeeSavedSignImg').src = d.auditeeSignature || '';
+                showModal('modalPreview');
+              });
+            } else {
+              document.getElementById('auditorSavedSignImg').src = '';
+              document.getElementById('auditeeSavedSignImg').src = '';
+              showModal('modalPreview');
+            }
           } else {
             Swal.fire('Gagal', res.message, 'error');
           }
@@ -3580,17 +3601,55 @@
           // Render lampiran
           renderLampiran(d.lampiran || []);
 
-          // Load signature images first
-          const auditorImg = document.getElementById('auditorSavedSignImg');
-          const auditeeImg = document.getElementById('auditeeSavedSignImg');
-          let sigsToLoad = 0;
-          function sigLoaded() { sigsToLoad--; if (sigsToLoad <= 0) generatePDF(); }
-          if (d.auditorSignature) { sigsToLoad++; auditorImg.onload = sigLoaded; auditorImg.onerror = sigLoaded; auditorImg.src = d.auditorSignature; }
-          else { auditorImg.src = ''; }
-          if (d.auditeeSignature) { sigsToLoad++; auditeeImg.onload = sigLoaded; auditeeImg.onerror = sigLoaded; auditeeImg.src = d.auditeeSignature; }
-          else { auditeeImg.src = ''; }
+          // Load signature images via backend (CORS-safe base64)
+          async function loadSigsThenPDF() {
+            try {
+              const auditorImg = document.getElementById('auditorSavedSignImg');
+              const auditeeImg = document.getElementById('auditeeSavedSignImg');
 
-          if (sigsToLoad === 0) generatePDF();
+              // Collect signature file IDs
+              const sigFileIds = [];
+              if (d.auditorSignature) {
+                const m = d.auditorSignature.match(/id=([^&]+)/);
+                if (m) sigFileIds.push(m[1]);
+              }
+              if (d.auditeeSignature) {
+                const m = d.auditeeSignature.match(/id=([^&]+)/);
+                if (m) sigFileIds.push(m[1]);
+              }
+
+              if (sigFileIds.length > 0) {
+                Swal.update({ title: 'Memuat tanda tangan...', text: '' });
+                const sigRes = await fetch(GAS_URL, {
+                  method: 'POST',
+                  body: JSON.stringify({ action: 'fetchImages', fileIds: sigFileIds })
+                }).then(r => r.json());
+
+                if (sigRes.success && sigRes.images) {
+                  let idx = 0;
+                  if (d.auditorSignature) { auditorImg.src = sigRes.images[sigFileIds[idx]] || ''; idx++; }
+                  else { auditorImg.src = ''; }
+                  if (d.auditeeSignature) { auditeeImg.src = sigRes.images[sigFileIds[idx]] || ''; idx++; }
+                  else { auditeeImg.src = ''; }
+                } else {
+                  auditorImg.src = d.auditorSignature || '';
+                  auditeeImg.src = d.auditeeSignature || '';
+                }
+              } else {
+                auditorImg.src = '';
+                auditeeImg.src = '';
+              }
+
+              // Wait for images to render
+              await new Promise(r => setTimeout(r, 300));
+              await generatePDF();
+            } catch(e) {
+              console.error('[Matrika] loadSigs error:', e);
+              Swal.fire('Error', 'Gagal memuat tanda tangan: ' + e.message, 'error');
+            }
+          }
+
+          loadSigsThenPDF();
 
           async function generatePDF() {
             const lampiranArea = document.getElementById('lampiranArea');
