@@ -3598,18 +3598,16 @@
           document.getElementById('prevAuditeeName').innerText = d.auditeeName;
           document.getElementById('prevHash').innerText = d.hashIntegritas || "Belum disubmit";
 
-          // Render lampiran
+          // Render lampiran with placeholder (will be replaced with base64 in generatePDF)
           renderLampiran(d.lampiran || []);
 
-          // All images (sigs + lampiran) are fetched in generatePDF via backend
           generatePDF();
 
           async function generatePDF() {
             const lampiranArea = document.getElementById('lampiranArea');
-            const lampiranWasHidden = lampiranArea.classList.contains('hidden');
+            const lampiranItems = d.lampiran || [];
 
             // Pre-fetch ALL images (lampiran + signatures) as base64 via backend
-            const lampiranItems = d.lampiran || [];
             const allFileIds = [];
             if (d.auditorSignature) { const m = d.auditorSignature.match(/id=([^&]+)/); if (m) allFileIds.push(m[1]); }
             if (d.auditeeSignature) { const m = d.auditeeSignature.match(/id=([^&]+)/); if (m) allFileIds.push(m[1]); }
@@ -3620,13 +3618,14 @@
 
             let allImages = {};
             if (allFileIds.length > 0) {
-              Swal.update({ title: 'Mengunduh foto...', text: `0/${allFileIds.length} foto` });
+              Swal.update({ title: 'Mengunduh foto...', text: '0/' + allFileIds.length + ' foto' });
               try {
                 const imgRes = await fetch(GAS_URL, {
                   method: 'POST',
                   body: JSON.stringify({ action: 'fetchImages', fileIds: allFileIds })
-                }).then(r => r.json());
+                }).then(function(r) { return r.json(); });
                 if (imgRes.success) allImages = imgRes.images || {};
+                console.log('[Matrika] fetchImages result:', Object.keys(allImages).length, 'images loaded');
               } catch(e) {
                 console.error('[Matrika] fetchImages failed:', e);
               }
@@ -3645,84 +3644,93 @@
             const grid = document.getElementById('lampiranGrid');
             if (lampiranItems.length > 0 && grid) {
               grid.innerHTML = '';
-              lampiranItems.forEach((item, idx) => {
-                const m = (item.url || '').match(/id=([^&]+)/);
-                const fid = m ? m[1] : null;
-                const base64 = fid ? allImages[fid] : '';
-                const caption = item.caption || 'Lampiran ke-' + (idx + 1);
-                const div = document.createElement('div');
+              lampiranItems.forEach(function(item, idx) {
+                var m = (item.url || '').match(/id=([^&]+)/);
+                var fid = m ? m[1] : null;
+                var base64 = fid ? allImages[fid] : '';
+                var caption = item.caption || 'Lampiran ke-' + (idx + 1);
+                var div = document.createElement('div');
                 div.className = 'lampiran-item';
                 div.innerHTML = '<img src="' + (base64 || '') + '" alt="' + caption + '">' +
                   '<div class="lampiran-caption">' + caption + '</div>';
                 grid.appendChild(div);
               });
+              // Make lampiranArea visible for capture
+              lampiranArea.classList.remove('hidden');
+              lampiranArea.style.display = 'block';
               Swal.update({ title: 'Foto siap...', text: '' });
             }
 
-            // Wait for images to render
-            await new Promise(r => setTimeout(r, 500));
+            // Wait for all images to actually load
+            var allImgs = document.querySelectorAll('#lampiranGrid img, #auditorSavedSignImg, #auditeeSavedSignImg');
+            var loadPromises = [];
+            allImgs.forEach(function(img) {
+              if (img.src && img.src !== window.location.href) {
+                loadPromises.push(new Promise(function(resolve) {
+                  if (img.complete) { resolve(); return; }
+                  img.onload = resolve;
+                  img.onerror = resolve;
+                  setTimeout(resolve, 3000);
+                }));
+              }
+            });
+            await Promise.all(loadPromises);
+            await new Promise(function(r) { setTimeout(r, 300); });
 
             // Make modal + previewArea visible offscreen for html2canvas capture
-            const modalPreview = document.getElementById('modalPreview');
-            const previewArea = document.getElementById('previewArea');
-            const origModalClass = modalPreview.className;
-            const origPreviewStyle = previewArea.style.cssText;
+            var modalPreview = document.getElementById('modalPreview');
+            var previewArea = document.getElementById('previewArea');
+            var origModalClass = modalPreview.className;
+            var origModalStyle = modalPreview.style.cssText;
+            var origPreviewStyle = previewArea.style.cssText;
+            var origModalContentStyle = modalPreview.querySelector('.modal-content').style.cssText;
 
             modalPreview.classList.remove('hidden');
-            modalPreview.style.position = 'absolute';
-            modalPreview.style.left = '-9999px';
-            modalPreview.style.top = '0';
-            modalPreview.style.width = '100vw';
-            modalPreview.style.height = '100vh';
-            modalPreview.style.overflow = 'hidden';
-            modalPreview.style.zIndex = '-1';
+            modalPreview.style.cssText = 'position:absolute; left:-9999px; top:0; width:100vw; height:100vh; overflow:hidden; z-index:-1; display:flex; align-items:flex-start; justify-content:center; opacity:1; visibility:visible; padding:0; margin:0;';
+            // Override modal-content max-width/height to fit full A4
+            modalPreview.querySelector('.modal-content').style.cssText = 'max-width:none; max-height:none; width:auto; padding:0; margin:0; overflow:visible; transform:none; box-shadow:none;';
 
-            previewArea.style.display = 'block';
-            previewArea.style.position = 'relative';
-            previewArea.style.width = '794px';
-            previewArea.style.height = '1123px';
-            previewArea.style.overflow = 'hidden';
-            previewArea.style.background = 'white';
-            previewArea.style.margin = '0';
+            previewArea.style.cssText = 'display:block; position:relative; width:794px; height:1123px; max-height:1123px; overflow:hidden; background:white; margin:0; padding:20px; box-sizing:border-box; flex-shrink:0;';
 
-            let origLampiranStyle = '';
-            let origLampiranPageStyle = '';
-            if (!lampiranWasHidden && lampiranItems.length > 0) {
-              lampiranArea.style.display = 'block';
+            var origLampiranStyle = '';
+            var origLampiranPageStyle = '';
+            if (lampiranItems.length > 0) {
               origLampiranStyle = lampiranArea.style.cssText;
-              const lp = document.getElementById('lampiranPage');
+              lampiranArea.style.cssText = 'display:block; margin-top:0;';
+              var lp = document.getElementById('lampiranPage');
               origLampiranPageStyle = lp.style.cssText;
-              lp.style.width = '794px';
-              lp.style.minHeight = '1123px';
-              lp.style.height = 'auto';
-              lp.style.border = 'none';
-              lp.style.margin = '0';
+              lp.style.cssText = 'background:white; padding:20px; color:black; font-family:"Times New Roman",Times,serif; font-size:13px; width:794px; min-height:1123px; height:auto; box-sizing:border-box; margin:0; border:none;';
             }
 
             Swal.update({ title: 'Membuat PDF...', text: 'Halaman 1: Pengamatan Internal Audit' });
-            await new Promise(r => setTimeout(r, 200));
+            await new Promise(function(r) { setTimeout(r, 300); });
 
-            const canvas1 = await html2canvas(previewArea, {
+            // Force layout recalc before capture
+            previewArea.offsetHeight;
+
+            var canvas1 = await html2canvas(previewArea, {
               scale: 2, useCORS: true, allowTaint: true,
               backgroundColor: '#ffffff', logging: false,
               width: 794, height: 1123, windowWidth: 794, windowHeight: 1123
             });
 
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfW = 210;
+            var jsPDF = window.jspdf.jsPDF;
+            var pdf = new jsPDF('p', 'mm', 'a4');
+            var pdfW = 210;
+            var pdfH = 297;
 
+            // Page 1: force full A4 height
             if (canvas1.width > 0 && canvas1.height > 0) {
-              const imgH1 = (canvas1.height * pdfW) / canvas1.width;
-              pdf.addImage(canvas1.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfW, imgH1);
+              pdf.addImage(canvas1.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfW, pdfH);
             }
 
-            if (!lampiranWasHidden && lampiranItems.length > 0) {
+            if (lampiranItems.length > 0) {
               Swal.update({ title: 'Membuat PDF...', text: 'Halaman 2: Lampiran' });
-              await new Promise(r => setTimeout(r, 100));
+              await new Promise(function(r) { setTimeout(r, 200); });
 
-              const lp = document.getElementById('lampiranPage');
-              const canvas2 = await html2canvas(lp, {
+              var lp = document.getElementById('lampiranPage');
+              lp.offsetHeight;
+              var canvas2 = await html2canvas(lp, {
                 scale: 2, useCORS: true, allowTaint: true,
                 backgroundColor: '#ffffff', logging: false,
                 width: 794, windowWidth: 794
@@ -3730,23 +3738,24 @@
 
               if (canvas2.width > 0 && canvas2.height > 0) {
                 pdf.addPage();
-                const imgH2 = (canvas2.height * pdfW) / canvas2.width;
+                var imgH2 = (canvas2.height * pdfW) / canvas2.width;
                 pdf.addImage(canvas2.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfW, imgH2);
               }
             }
 
             // Restore elements
             modalPreview.className = origModalClass;
-            modalPreview.style.cssText = '';
+            modalPreview.style.cssText = origModalStyle;
+            modalPreview.querySelector('.modal-content').style.cssText = origModalContentStyle;
             previewArea.style.cssText = origPreviewStyle;
-            if (!lampiranWasHidden) {
+            if (lampiranItems.length > 0) {
               lampiranArea.style.cssText = origLampiranStyle;
-              const lp = document.getElementById('lampiranPage');
-              if (lp) lp.style.cssText = origLampiranPageStyle;
+              var lpRestore = document.getElementById('lampiranPage');
+              if (lpRestore) lpRestore.style.cssText = origLampiranPageStyle;
             }
 
-            const cleanName = (d.auditeeName || 'Audit').replace(/[^a-zA-Z0-9]/g, '_');
-            pdf.save(`Audit_${cleanName}_${d.kategori}.pdf`);
+            var cleanName = (d.auditeeName || 'Audit').replace(/[^a-zA-Z0-9]/g, '_');
+            pdf.save('Audit_' + cleanName + '_' + d.kategori + '.pdf');
             Swal.fire({ icon: 'success', title: 'PDF berhasil didownload!', timer: 1500, showConfirmButton: false });
           }
 
