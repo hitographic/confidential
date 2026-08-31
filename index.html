@@ -3669,17 +3669,19 @@
               var contentH = pageH - (margin * 2);
               var imgW = canvas.width;
               var imgH = canvas.height;
-              var slicedH = (contentW / imgW) * imgH;
+              var scale = contentW / imgW;
+              var slicedH = contentH / scale;
               var totalPages = Math.ceil(imgH / slicedH);
 
               for (var i = 0; i < totalPages; i++) {
                 if (i > 0) pdf.addPage();
-                var srcY = (i * slicedH * imgW) / contentW;
+                var srcY = i * slicedH;
                 var srcH = Math.min(slicedH, imgH - srcY);
-                var drawH = (srcH / imgW) * contentW;
+                var drawH = srcH * scale;
+                if (drawH > contentH) drawH = contentH;
                 var pageCanvas = document.createElement('canvas');
                 pageCanvas.width = imgW;
-                pageCanvas.height = srcH;
+                pageCanvas.height = Math.ceil(srcH);
                 var ctx = pageCanvas.getContext('2d');
                 ctx.drawImage(canvas, 0, srcY, imgW, srcH, 0, 0, imgW, srcH);
                 var pageData = pageCanvas.toDataURL('image/jpeg', 0.95);
@@ -3697,7 +3699,7 @@
 
             }).catch(function(err) {
               console.error('[Matrika] html2canvas error:', err);
-              document.body.removeChild(container);
+              if (container.parentNode) container.parentNode.removeChild(container);
               Swal.fire('Error', 'Gagal generate PDF: ' + err.message, 'error');
             });
 
