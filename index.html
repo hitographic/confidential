@@ -8,7 +8,6 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><text y='.9em' x='50' text-anchor='middle' font-size='80'>🛡️</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -3535,173 +3534,291 @@
 
       function exportItemPDF(id) {
         try {
-        Swal.fire({ title: 'Memuat data...', text: 'Mengambil data dari server', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        Swal.fire({ title: 'Memuat data...', text: 'Mengambil data dari server', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
         fetch(GAS_URL, {
           method: 'POST', body: JSON.stringify({ action: 'getDetail', id: id })
         }).then(function(res) { return res.json(); }).then(function(res) {
           if (!res.success) { Swal.fire('Gagal', res.message, 'error'); return; }
           var d = res.data;
 
-          // === Populate previewArea exactly like previewData() ===
-          var cbMarkH = (d.kategori === 'Halal') ? 'V' : '&nbsp;';
-          var cbMarkS = (d.kategori === 'SMK3') ? 'V' : '&nbsp;';
-          var cbMarkI = (d.kategori === 'ISO') ? 'V' : '&nbsp;';
-          var cbMarkSm = (d.kategori === 'SML') ? 'V' : '&nbsp;';
-          var cbMarkF = (d.kategori === 'FSSC') ? 'V' : '&nbsp;';
-          var cbMarkSe = (d.kategori === 'SME') ? 'V' : '&nbsp;';
-          var cbHtml = '<table style="width:100%;border:none;font-weight:bold;font-size:14px;">' +
-            '<tr>' +
-            '<td style="border:none;padding:2px;"><div class="check-box">' + cbMarkH + '</div> Halal</td>' +
-            '<td style="border:none;padding:2px;"><div class="check-box">' + cbMarkS + '</div> SMK3</td>' +
-            '<td style="border:none;padding:2px;"><div class="check-box" style="width:40px;">&nbsp;</div> .........</td>' +
-            '</tr>' +
-            '<tr>' +
-            '<td style="border:none;padding:2px;"><div class="check-box">' + cbMarkI + '</div> ISO</td>' +
-            '<td style="border:none;padding:2px;"><div class="check-box">' + cbMarkSm + '</div> SML</td>' +
-            '<td style="border:none;padding:2px;"></td>' +
-            '</tr>' +
-            '<tr>' +
-            '<td style="border:none;padding:2px;"><div class="check-box">' + cbMarkF + '</div> FSSC</td>' +
-            '<td style="border:none;padding:2px;"><div class="check-box">' + cbMarkSe + '</div> SME</td>' +
-            '<td style="border:none;padding:2px;"></td>' +
-            '</tr></table>';
-          document.getElementById('previewCheckboxes').innerHTML = cbHtml;
-          document.getElementById('prevDept').innerText = d.departemen;
-          var months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-          var dt = new Date(d.tanggal);
-          document.getElementById('prevDate').innerText = dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
-
-          var tbody = document.getElementById('previewTableBody');
-          tbody.innerHTML = '';
-          var counterP = 1;
-          (d.checklistData || []).forEach(function(row) {
-            if (row.type == 1 || row.type == 2 || row.type == 3) return;
-            if (!row.hasilPengamatan || row.hasilPengamatan.trim() === '') return;
-            var tr = document.createElement('tr');
-            tr.style.height = '1px';
-            tr.innerHTML = '<td style="text-align:center;font-weight:bold;">' + (counterP++) + '</td>' +
-              '<td style="padding-left:10px;">' + (row.hasilPengamatan || '') + '</td>' +
-              '<td style="text-align:center;">' + (row.kriteria || '-') + '</td>' +
-              '<td style="text-align:center;">' + (row.kategoriVal || '-') + '</td>';
-            tbody.appendChild(tr);
-          });
-          var fillerTr = document.createElement('tr');
-          fillerTr.style.height = '100%';
-          fillerTr.innerHTML = '<td></td><td></td><td></td><td></td>';
-          tbody.appendChild(fillerTr);
-
-          document.getElementById('prevAuditorName').innerText = d.auditorName;
-          document.getElementById('prevAuditeeName').innerText = d.auditeeName;
-          document.getElementById('auditorSavedSignImg').src = d.auditorSignature || '';
-          document.getElementById('auditeeSavedSignImg').src = d.auditeeSignature || '';
-          document.getElementById('prevHash').innerText = d.hashIntegritas || "Belum disubmit";
-
-          // === Populate lampiranPage ===
-          renderLampiran(d.lampiran || []);
-
-          // === Collect ALL Google Drive URLs → fetch as base64 via GAS ===
+          // Collect all image URLs
           var urls = [];
-          if (d.auditorSignature && d.auditorSignature.indexOf('drive.google.com') !== -1) urls.push(d.auditorSignature);
-          if (d.auditeeSignature && d.auditeeSignature.indexOf('drive.google.com') !== -1) urls.push(d.auditeeSignature);
-          (d.lampiran || []).forEach(function(item) {
-            if (item.url && item.url.indexOf('drive.google.com') !== -1) urls.push(item.url);
-          });
+          if (d.auditorSignature) urls.push(d.auditorSignature);
+          if (d.auditeeSignature) urls.push(d.auditeeSignature);
+          (d.lampiran || []).forEach(function(item) { if (item.url) urls.push(item.url); });
           urls = urls.filter(function(u, i, a) { return a.indexOf(u) === i; });
 
-          function toBase64(url) {
-            return fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'fetchImages', urls: [url] }) })
-              .then(function(r) { return r.json(); })
-              .then(function(r) { return (r.data && r.data[0]) || url; });
-          }
-
+          // Fetch all images as base64 via GAS proxy
+          var imageMap = {};
           var chain = Promise.resolve();
-          var base64Map = {};
           urls.forEach(function(url) {
             chain = chain.then(function() {
-              return toBase64(url).then(function(b64) { base64Map[url] = b64; });
+              return fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'fetchImages', urls: [url] }) })
+                .then(function(r) { return r.json(); })
+                .then(function(r) { if (r.success && r.data && r.data[0]) imageMap[url] = r.data[0]; });
             });
           });
 
           chain.then(function() {
-            Swal.fire({ title: 'Generating PDF...', text: 'Memproses dokumen', allowOutsideClick: false, didOpen: function() { Swal.showLoading(); } });
+            Swal.update({ title: 'Generating PDF...', text: 'Memproses dokumen' });
 
-            // === Clone previewArea & lampiranPage, replace URLs with base64 ===
-            var clone1 = document.getElementById('previewArea').cloneNode(true);
-            var clone2 = document.getElementById('lampiranPage').cloneNode(true);
+            var pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+            var pageW = 210, pageH = 297;
+            var margin = 0.19 * 25.4;
+            var contentW = pageW - margin * 2;
+            var y = margin;
 
-            function replaceUrls(el) {
-              el.querySelectorAll('img').forEach(function(img) {
-                var src = img.getAttribute('src');
-                if (src && base64Map[src]) img.setAttribute('src', base64Map[src]);
+            var months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+            var dt = new Date(d.tanggal);
+            var dateStr = dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
+
+            // === PAGE 1 ===
+
+            // Header Row 1: Company + Form Info
+            var leftBoxW = pageW * 0.58 - margin;
+            var headerH = 18;
+            pdf.setDrawColor(0);
+            pdf.setLineWidth(0.3);
+            pdf.rect(margin, y, leftBoxW, headerH);
+            pdf.rect(margin + leftBoxW, y, contentW - leftBoxW, headerH);
+
+            pdf.setFont('times', 'bold');
+            pdf.setFontSize(12);
+            pdf.text('PT INDOFOOD CBP SUKSES MAKMUR Tbk', margin + leftBoxW / 2, y + 7, { align: 'center' });
+            pdf.setFontSize(11);
+            pdf.text('DIVISI NOODLE - PABRIK CIBITUNG', margin + leftBoxW / 2, y + 13, { align: 'center' });
+
+            pdf.setFont('times', 'normal');
+            pdf.setFontSize(10);
+            var rx = margin + leftBoxW + 3;
+            pdf.text('Kode Form', rx, y + 5); pdf.text(': MGT - 003', rx + 30, y + 5);
+            pdf.text('No. Terbitan', rx, y + 8.5); pdf.text(': 2.0', rx + 30, y + 8.5);
+            pdf.text('Tgl. Efektif', rx, y + 12); pdf.text(': 02 Oktober 2023', rx + 30, y + 12);
+            pdf.text('Halaman', rx, y + 15.5); pdf.text(': 1 / 1', rx + 30, y + 15.5);
+            y += headerH;
+
+            // Header Row 2: Title + Checkboxes
+            var row2H = 22;
+            var titleW = pageW * 0.45 - margin;
+            pdf.rect(margin, y, titleW, row2H);
+            pdf.rect(margin + titleW, y, contentW - titleW, row2H);
+
+            pdf.setFont('times', 'bold');
+            pdf.setFontSize(13);
+            pdf.text('PENGAMATAN', margin + titleW / 2, y + 8, { align: 'center' });
+            pdf.text('INTERNAL AUDIT', margin + titleW / 2, y + 14, { align: 'center' });
+
+            var cbx = margin + titleW + 3;
+            var cby = y + 5;
+            var cbs = 4;
+            var cbData = [
+              ['Halal', d.kategori === 'Halal' ? 'V' : ''],
+              ['SMK3', d.kategori === 'SMK3' ? 'V' : ''],
+              ['ISO', d.kategori === 'ISO' ? 'V' : ''],
+              ['SML', d.kategori === 'SML' ? 'V' : ''],
+              ['FSSC', d.kategori === 'FSSC' ? 'V' : ''],
+              ['SME', d.kategori === 'SME' ? 'V' : '']
+            ];
+            var cbColW = (contentW - titleW) / 3;
+            pdf.setFont('times', 'bold');
+            pdf.setFontSize(10);
+            cbData.forEach(function(cb, idx) {
+              var col = idx % 3, row = Math.floor(idx / 3);
+              var cx = cbx + col * cbColW;
+              var cy = cby + row * 5.5;
+              pdf.setLineWidth(0.2);
+              pdf.rect(cx, cy, cbs, 3.2);
+              if (cb[1] === 'V') { pdf.setFontSize(9); pdf.text('V', cx + 1, cy + 2.5); }
+              pdf.setFontSize(10);
+              pdf.text(cb[0], cx + cbs + 1.5, cy + 2.5);
+            });
+            y += row2H;
+
+            // Header Row 3: Dept + Date
+            var row3H = 12;
+            pdf.rect(margin, y, contentW, row3H);
+            pdf.setFont('times', 'bold');
+            pdf.setFontSize(11);
+            pdf.text('Departemen', margin + 3, y + 5);
+            pdf.text(': ' + (d.departemen || ''), margin + 30, y + 5);
+            pdf.text('Tanggal', margin + 3, y + 10);
+            pdf.text(': ' + dateStr, margin + 30, y + 10);
+            y += row3H;
+
+            // Data Table
+            var colW = [contentW * 0.05, contentW * 0.65, contentW * 0.15, contentW * 0.15];
+            pdf.setLineWidth(0.3);
+            pdf.line(margin, y, margin + contentW, y);
+
+            var headH = 10;
+            pdf.setFont('times', 'bold');
+            pdf.setFontSize(10);
+            var headers = ['NO.', 'HASIL PENGAMATAN', 'ELEMEN /\nKLAUSUL', 'KATEGORI'];
+            var hx = margin;
+            headers.forEach(function(h, i) {
+              var lines = h.split('\n');
+              lines.forEach(function(l, li) { pdf.text(l, hx + colW[i] / 2, y + 4 + li * 3.5, { align: 'center' }); });
+              hx += colW[i];
+            });
+            y += headH;
+            pdf.line(margin, y, margin + contentW, y);
+
+            // Column separators for header
+            hx = margin;
+            for (var ci = 0; ci <= colW.length; ci++) {
+              pdf.line(hx, y - headH, hx, y);
+              if (ci < colW.length) hx += colW[ci];
+            }
+
+            // Data rows
+            pdf.setFont('times', 'normal');
+            pdf.setFontSize(10);
+            var dataRows = (d.checklistData || []).filter(function(row) {
+              return row.type !== 1 && row.type !== 2 && row.type !== 3 && row.hasilPengamatan && row.hasilPengamatan.trim();
+            });
+            var rn = 1;
+            dataRows.forEach(function(row) {
+              var textLines = pdf.splitTextToSize(row.hasilPengamatan || '', colW[1] - 4);
+              var rh = Math.max(7, textLines.length * 4 + 4);
+
+              if (y + rh > pageH - margin - 30) { pdf.addPage(); y = margin; }
+
+              pdf.line(margin, y, margin + contentW, y);
+              var rx2 = margin;
+
+              pdf.setFont('times', 'bold');
+              pdf.text(String(rn++), rx2 + colW[0] / 2, y + 5, { align: 'center' });
+              rx2 += colW[0];
+
+              pdf.setFont('times', 'normal');
+              pdf.text(textLines, rx2 + 2, y + 4);
+              rx2 += colW[1];
+
+              pdf.text(row.kriteria || '-', rx2 + colW[2] / 2, y + 5, { align: 'center' });
+              rx2 += colW[2];
+
+              pdf.text(row.kategoriVal || '-', rx2 + colW[3] / 2, y + 5, { align: 'center' });
+
+              y += rh;
+              pdf.setLineWidth(0.1);
+              pdf.line(margin, y, margin + contentW, y);
+              pdf.setLineWidth(0.3);
+
+              rx2 = margin;
+              for (var ci2 = 0; ci2 <= colW.length; ci2++) {
+                pdf.line(rx2, y - rh, rx2, y);
+                if (ci2 < colW.length) rx2 += colW[ci2];
+              }
+            });
+
+            // Signature area
+            var sigTop = Math.max(y + 5, pageH - margin - 55);
+            pdf.setLineWidth(0.3);
+            pdf.line(margin, sigTop, margin + contentW, sigTop);
+            y = sigTop + 3;
+
+            var sigColW = contentW / 3;
+            var signNameY = y + 30;
+
+            // Auditor
+            pdf.setFont('times', 'bold');
+            pdf.setFontSize(11);
+            pdf.text('Auditor', margin + sigColW / 2, y + 5, { align: 'center' });
+            if (imageMap[d.auditorSignature]) {
+              try { pdf.addImage(imageMap[d.auditorSignature], 'JPEG', margin + sigColW / 2 - 20, y + 7, 40, 22); } catch(e) {}
+            }
+            pdf.line(margin + sigColW / 2 - 18, signNameY, margin + sigColW / 2 + 18, signNameY);
+            pdf.setFontSize(10);
+            pdf.text(d.auditorName || '', margin + sigColW / 2, signNameY + 4, { align: 'center' });
+
+            // Auditee
+            var ax = margin + sigColW;
+            pdf.setFont('times', 'bold');
+            pdf.setFontSize(11);
+            pdf.text('Auditee', ax + sigColW / 2, y + 5, { align: 'center' });
+            if (imageMap[d.auditeeSignature]) {
+              try { pdf.addImage(imageMap[d.auditeeSignature], 'JPEG', ax + sigColW / 2 - 20, y + 7, 40, 22); } catch(e) {}
+            }
+            pdf.line(ax + sigColW / 2 - 18, signNameY, ax + sigColW / 2 + 18, signNameY);
+            pdf.setFontSize(10);
+            pdf.text(d.auditeeName || '', ax + sigColW / 2, signNameY + 4, { align: 'center' });
+
+            // Legend
+            var lx = margin + sigColW * 2;
+            pdf.setFont('times', 'bold');
+            pdf.setFontSize(10);
+            pdf.text('Kategori :', lx + 2, y + 5);
+            pdf.setFont('times', 'italic');
+            pdf.setFontSize(9);
+            ['C = Conformance','Minor = Temuan Minor','Major = Temuan Major','Kritis = Temuan Kritis'].forEach(function(t, i) {
+              pdf.text(t, lx + 2, y + 10 + i * 4);
+            });
+
+            // Hash
+            y = pageH - margin - 5;
+            pdf.setLineWidth(0.1);
+            pdf.setLineDashPattern([1, 1], 0);
+            pdf.line(margin, y, margin + contentW, y);
+            pdf.setLineDashPattern([], 0);
+            pdf.setFont('times', 'normal');
+            pdf.setFontSize(7);
+            pdf.setTextColor(128);
+            pdf.text('Hash Integritas (SHA-256): ' + (d.hashIntegritas || 'Belum disubmit'), margin + 2, y + 3);
+            pdf.setTextColor(0);
+
+            // === PAGE 2: Lampiran ===
+            if (d.lampiran && d.lampiran.length > 0) {
+              pdf.addPage();
+              y = margin;
+
+              // Border
+              pdf.setDrawColor(0);
+              pdf.setLineWidth(0.3);
+              pdf.rect(margin, margin, contentW, pageH - margin * 2);
+
+              // Title
+              pdf.setFont('times', 'bold');
+              pdf.setFontSize(14);
+              pdf.text('LAMPIRAN', pageW / 2, y + 8, { align: 'center' });
+              var tw = pdf.getTextWidth('LAMPIRAN');
+              pdf.line(pageW / 2 - tw / 2, y + 10, pageW / 2 + tw / 2, y + 10);
+              y += 18;
+
+              // 3-column grid
+              var gap = 5;
+              var cellW = (contentW - gap * 4) / 3;
+              var cellH = cellW;
+
+              d.lampiran.forEach(function(item, idx) {
+                var col = idx % 3, row = Math.floor(idx / 3);
+                var ix = margin + gap + col * (cellW + gap);
+                var iy = y + gap + row * (cellH + gap + 6);
+
+                if (iy + cellH + 10 > pageH - margin) { pdf.addPage(); y = margin + 18; iy = y + gap; }
+
+                pdf.setDrawColor(200);
+                pdf.setLineWidth(0.1);
+                pdf.rect(ix, iy, cellW, cellH);
+
+                if (imageMap[item.url]) {
+                  try { pdf.addImage(imageMap[item.url], 'JPEG', ix + 1, iy + 1, cellW - 2, cellH - 2); } catch(e) {}
+                }
+
+                pdf.setFont('times', 'italic');
+                pdf.setFontSize(9);
+                pdf.setTextColor(51);
+                pdf.text(item.caption || 'Lampiran ke-' + (idx + 1), ix + cellW / 2, iy + cellH + 4, { align: 'center' });
+                pdf.setTextColor(0);
               });
             }
-            replaceUrls(clone1);
-            replaceUrls(clone2);
 
-            // === Build hidden container with exact preview CSS ===
-            var container = document.createElement('div');
-            container.style.cssText = 'position:fixed;left:0;top:0;width:794px;visibility:hidden;z-index:-1;background:white;';
-            container.appendChild(clone1);
-            clone1.style.cssText = 'width:794px;height:1123px;background:white;overflow:hidden;display:flex;flex-direction:column;padding:0;margin:0;font-family:"Times New Roman",Times,serif;font-size:13px;color:#000;';
-            var hasLampiran = !document.getElementById('lampiranArea').classList.contains('hidden');
-            if (hasLampiran) {
-              container.appendChild(clone2);
-              clone2.style.cssText = 'width:794px;min-height:1123px;background:white;padding:20px;color:black;font-family:"Times New Roman",Times,serif;font-size:13px;box-sizing:border-box;border:2px solid black;margin-top:20px;';
-            }
-            document.body.appendChild(container);
-
-            // === Render with html2canvas ===
-            html2canvas(container, {
-              scale: 2,
-              useCORS: true,
-              backgroundColor: '#ffffff',
-              width: 794,
-              windowWidth: 794
-            }).then(function(canvas) {
-              document.body.removeChild(container);
-
-              // === Generate PDF with jsPDF ===
-              var pdf = new jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-              var pageW = 210;
-              var pageH = 297;
-              var margin = 0.19 * 25.4;
-              var contentW = pageW - (margin * 2);
-              var contentH = pageH - (margin * 2);
-              var imgW = canvas.width;
-              var imgH = canvas.height;
-              var scale = contentW / imgW;
-              var slicedH = contentH / scale;
-              var totalPages = Math.ceil(imgH / slicedH);
-
-              for (var i = 0; i < totalPages; i++) {
-                if (i > 0) pdf.addPage();
-                var srcY = i * slicedH;
-                var srcH = Math.min(slicedH, imgH - srcY);
-                var drawH = srcH * scale;
-                if (drawH > contentH) drawH = contentH;
-                var pageCanvas = document.createElement('canvas');
-                pageCanvas.width = imgW;
-                pageCanvas.height = Math.ceil(srcH);
-                var ctx = pageCanvas.getContext('2d');
-                ctx.drawImage(canvas, 0, srcY, imgW, srcH, 0, 0, imgW, srcH);
-                var pageData = pageCanvas.toDataURL('image/jpeg', 0.95);
-                pdf.addImage(pageData, 'JPEG', margin, margin, contentW, drawH);
-              }
-
-              // === Download with custom filename ===
-              var filename = (d.departemen || 'Dept') + '-' + (d.auditorName || 'Auditor') + '-' + (d.auditeeName || 'Auditee') + '-';
-              var dd = String(dt.getDate()).padStart(2, '0');
-              var mm = String(dt.getMonth() + 1).padStart(2, '0');
-              var yyyy = dt.getFullYear();
-              filename += dd + mm + yyyy + '.pdf';
-              pdf.save(filename);
-              Swal.close();
-
-            }).catch(function(err) {
-              console.error('[Matrika] html2canvas error:', err);
-              if (container.parentNode) container.parentNode.removeChild(container);
-              Swal.fire('Error', 'Gagal generate PDF: ' + err.message, 'error');
-            });
+            // Download
+            var fn = (d.departemen || 'Dept') + '-' + (d.auditorName || 'Auditor') + '-' + (d.auditeeName || 'Auditee') + '-';
+            var dd = String(dt.getDate()).padStart(2, '0');
+            var mm = String(dt.getMonth() + 1).padStart(2, '0');
+            fn += dd + mm + dt.getFullYear() + '.pdf';
+            pdf.save(fn);
+            Swal.close();
 
           }).catch(function(err) {
             console.error('[Matrika] fetchImages error:', err);
