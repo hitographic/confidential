@@ -3542,22 +3542,46 @@
           var d = res.data;
 
           // Collect all image URLs
-          var urls = [];
-          if (d.auditorSignature) urls.push(d.auditorSignature);
-          if (d.auditeeSignature) urls.push(d.auditeeSignature);
-          (d.lampiran || []).forEach(function(item) { if (item.url) urls.push(item.url); });
-          urls = urls.filter(function(u, i, a) { return a.indexOf(u) === i; });
+          var allUrls = [];
+          if (d.auditorSignature) allUrls.push(d.auditorSignature);
+          if (d.auditeeSignature) allUrls.push(d.auditeeSignature);
+          (d.lampiran || []).forEach(function(item) { if (item.url) allUrls.push(item.url); });
+          allUrls = allUrls.filter(function(u, i, a) { return a.indexOf(u) === i; });
 
-          // Fetch all images as base64 via GAS proxy
+          // Separate base64 data URLs (use directly) vs Drive URLs (need fetch)
           var imageMap = {};
-          var chain = Promise.resolve();
-          urls.forEach(function(url) {
-            chain = chain.then(function() {
-              return fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'fetchImages', urls: [url] }) })
-                .then(function(r) { return r.json(); })
-                .then(function(r) { if (r.success && r.data && r.data[0]) imageMap[url] = r.data[0]; });
-            });
+          var driveFileIds = [];
+          var driveIdToUrl = {};
+          allUrls.forEach(function(url) {
+            if (url.startsWith('data:image')) {
+              imageMap[url] = url;
+            } else {
+              var m = url.match(/id=([^&]+)/);
+              if (m) {
+                var fid = m[1];
+                imageMap[url] = ''; // placeholder
+                driveFileIds.push(fid);
+                driveIdToUrl[fid] = url;
+              }
+            }
           });
+
+          // Fetch Drive images as base64 via GAS proxy
+          var chain = Promise.resolve();
+          if (driveFileIds.length > 0) {
+            chain = chain.then(function() {
+              return fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'fetchImages', fileIds: driveFileIds }) })
+                .then(function(r) { return r.json(); })
+                .then(function(r) {
+                  if (r.success && r.images) {
+                    Object.keys(r.images).forEach(function(fid) {
+                      var origUrl = driveIdToUrl[fid];
+                      if (origUrl && r.images[fid]) imageMap[origUrl] = r.images[fid];
+                    });
+                  }
+                });
+            });
+          }
 
           chain.then(function() {
             Swal.update({ title: 'Generating PDF...', text: 'Memproses dokumen' });
@@ -3573,12 +3597,14 @@
             var dateStr = dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
 
             // === PAGE 1 ===
-
-            // Header Row 1: Company + Form Info
-            var leftBoxW = pageW * 0.58 - margin;
-            var headerH = 18;
+            // Outer page border
             pdf.setDrawColor(0);
             pdf.setLineWidth(0.3);
+            pdf.rect(margin, margin, contentW, pageH - margin * 2);
+
+            // Header Row 1: Company + Form Info
+            var leftBoxW = contentW * 0.58;
+            var headerH = 18;
             pdf.rect(margin, y, leftBoxW, headerH);
             pdf.rect(margin + leftBoxW, y, contentW - leftBoxW, headerH);
 
@@ -3591,15 +3617,15 @@
             pdf.setFont('times', 'normal');
             pdf.setFontSize(10);
             var rx = margin + leftBoxW + 3;
-            pdf.text('Kode Form', rx, y + 5); pdf.text(': MGT - 003', rx + 30, y + 5);
-            pdf.text('No. Terbitan', rx, y + 8.5); pdf.text(': 2.0', rx + 30, y + 8.5);
-            pdf.text('Tgl. Efektif', rx, y + 12); pdf.text(': 02 Oktober 2023', rx + 30, y + 12);
-            pdf.text('Halaman', rx, y + 15.5); pdf.text(': 1 / 1', rx + 30, y + 15.5);
+            pdf.text('Kode Form', rx, y + 5); pdf.text(': MGT - 003', rx + 28, y + 5);
+            pdf.text('No. Terbitan', rx, y + 8.5); pdf.text(': 2.0', rx + 28, y + 8.5);
+            pdf.text('Tgl. Efektif', rx, y + 12); pdf.text(': 02 Oktober 2023', rx + 28, y + 12);
+            pdf.text('Halaman', rx, y + 15.5); pdf.text(': 1 / 1', rx + 28, y + 15.5);
             y += headerH;
 
             // Header Row 2: Title + Checkboxes
             var row2H = 22;
-            var titleW = pageW * 0.45 - margin;
+            var titleW = contentW * 0.45;
             pdf.rect(margin, y, titleW, row2H);
             pdf.rect(margin + titleW, y, contentW - titleW, row2H);
 
@@ -3609,15 +3635,18 @@
             pdf.text('INTERNAL AUDIT', margin + titleW / 2, y + 14, { align: 'center' });
 
             var cbx = margin + titleW + 3;
-            var cby = y + 5;
+            var cby = y + 3;
             var cbs = 4;
             var cbData = [
               ['Halal', d.kategori === 'Halal' ? 'V' : ''],
               ['SMK3', d.kategori === 'SMK3' ? 'V' : ''],
+              ['', ''],
               ['ISO', d.kategori === 'ISO' ? 'V' : ''],
               ['SML', d.kategori === 'SML' ? 'V' : ''],
+              ['..........', ''],
               ['FSSC', d.kategori === 'FSSC' ? 'V' : ''],
-              ['SME', d.kategori === 'SME' ? 'V' : '']
+              ['SME', d.kategori === 'SME' ? 'V' : ''],
+              ['', '']
             ];
             var cbColW = (contentW - titleW) / 3;
             pdf.setFont('times', 'bold');
@@ -3625,12 +3654,14 @@
             cbData.forEach(function(cb, idx) {
               var col = idx % 3, row = Math.floor(idx / 3);
               var cx = cbx + col * cbColW;
-              var cy = cby + row * 5.5;
-              pdf.setLineWidth(0.2);
-              pdf.rect(cx, cy, cbs, 3.2);
-              if (cb[1] === 'V') { pdf.setFontSize(9); pdf.text('V', cx + 1, cy + 2.5); }
-              pdf.setFontSize(10);
-              pdf.text(cb[0], cx + cbs + 1.5, cy + 2.5);
+              var cy = cby + row * 6;
+              if (cb[0]) {
+                pdf.setLineWidth(0.2);
+                pdf.rect(cx, cy, cbs, 3.2);
+                if (cb[1] === 'V') { pdf.setFontSize(9); pdf.text('V', cx + 1, cy + 2.5); }
+                pdf.setFontSize(10);
+                pdf.text(cb[0], cx + cbs + 1.5, cy + 2.5);
+              }
             });
             y += row2H;
 
@@ -3646,7 +3677,7 @@
             y += row3H;
 
             // Data Table
-            var colW = [contentW * 0.05, contentW * 0.65, contentW * 0.15, contentW * 0.15];
+            var colW = [contentW * 0.05, contentW * 0.60, contentW * 0.20, contentW * 0.15];
             pdf.setLineWidth(0.3);
             pdf.line(margin, y, margin + contentW, y);
 
@@ -3681,7 +3712,7 @@
               var textLines = pdf.splitTextToSize(row.hasilPengamatan || '', colW[1] - 4);
               var rh = Math.max(7, textLines.length * 4 + 4);
 
-              if (y + rh > pageH - margin - 30) { pdf.addPage(); y = margin; }
+              if (y + rh > pageH - margin - 55) { pdf.addPage(); y = margin; }
 
               pdf.line(margin, y, margin + contentW, y);
               var rx2 = margin;
@@ -3784,19 +3815,19 @@
               pdf.line(pageW / 2 - tw / 2, y + 10, pageW / 2 + tw / 2, y + 10);
               y += 18;
 
-              // 3-column grid
-              var gap = 5;
-              var cellW = (contentW - gap * 4) / 3;
+              // 2-column grid
+              var gap = 8;
+              var cellW = (contentW - gap * 3) / 2;
               var cellH = cellW;
 
               d.lampiran.forEach(function(item, idx) {
-                var col = idx % 3, row = Math.floor(idx / 3);
+                var col = idx % 2, row = Math.floor(idx / 2);
                 var ix = margin + gap + col * (cellW + gap);
                 var iy = y + gap + row * (cellH + gap + 6);
 
                 if (iy + cellH + 10 > pageH - margin) { pdf.addPage(); y = margin + 18; iy = y + gap; }
 
-                pdf.setDrawColor(200);
+                pdf.setDrawColor(0);
                 pdf.setLineWidth(0.1);
                 pdf.rect(ix, iy, cellW, cellH);
 
@@ -3806,9 +3837,8 @@
 
                 pdf.setFont('times', 'italic');
                 pdf.setFontSize(9);
-                pdf.setTextColor(51);
-                pdf.text(item.caption || 'Lampiran ke-' + (idx + 1), ix + cellW / 2, iy + cellH + 4, { align: 'center' });
                 pdf.setTextColor(0);
+                pdf.text(item.caption || 'Lampiran ke-' + (idx + 1), ix + cellW / 2, iy + cellH + 4, { align: 'center' });
               });
             }
 
