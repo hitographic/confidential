@@ -3694,10 +3694,10 @@
               pdf.text(textLines, rx2 + 2, y + 4);
               rx2 += colW[1];
 
-              pdf.text(row.kriteria || '-', rx2 + colW[2] / 2, y + 5, { align: 'center' });
+              pdf.text(String(row.kriteria || '-'), rx2 + colW[2] / 2, y + 5, { align: 'center' });
               rx2 += colW[2];
 
-              pdf.text(row.kategoriVal || '-', rx2 + colW[3] / 2, y + 5, { align: 'center' });
+              pdf.text(String(row.kategoriVal || '-'), rx2 + colW[3] / 2, y + 5, { align: 'center' });
 
               y += rh;
               pdf.setLineWidth(0.1);
