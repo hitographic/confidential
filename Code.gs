@@ -519,21 +519,20 @@ function handleChangePassword(nik, oldPassword, newPassword) {
 
 function handleFetchImages(fileIds) {
   try {
-    const results = {};
+    var results = {};
+    if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
+      return { success: true, images: results };
+    }
     fileIds.forEach(function(id) {
       try {
-        let driveId = id;
-        if (id.indexOf('drive.google.com') !== -1) {
-          const m = id.match(/id=([^&]+)/);
-          if (m) driveId = m[1];
-        }
-        const url = 'https://drive.google.com/uc?export=view&id=' + driveId;
-        const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
-        const blob = response.getBlob();
-        const base64 = Utilities.base64Encode(blob.getBytes());
-        const ct = blob.getContentType() || 'image/jpeg';
+        if (!id) return;
+        var file = DriveApp.getFileById(String(id).trim());
+        var blob = file.getBlob();
+        var base64 = Utilities.base64Encode(blob.getBytes());
+        var ct = blob.getContentType() || 'image/png';
         results[id] = 'data:' + ct + ';base64,' + base64;
       } catch(e) {
+        Logger.log('[fetchImages] Gagal fetch id=' + id + ': ' + e.message);
         results[id] = '';
       }
     });
