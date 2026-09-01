@@ -3595,7 +3595,7 @@
 
             var pdf = new jspdf.jsPDF('p', 'mm', 'a4');
             var pageW = 210, pageH = 297;
-            var margin = 5;
+            var margin = 8;
             var contentW = pageW - margin * 2;
             var y = margin;
 
@@ -3606,71 +3606,76 @@
             // === PAGE 1 ===
             // Outer page border
             pdf.setDrawColor(0);
-            pdf.setLineWidth(0.5);
+            pdf.setLineWidth(0.7);
             pdf.rect(margin, margin, contentW, pageH - margin * 2);
 
             // --- Header Row 1: Company + Form Info ---
-            var leftBoxW = contentW * 0.57;
-            var headerH = 20;
+            var leftBoxW = Math.round(contentW * 0.57);
+            var headerH = 22;
             pdf.setLineWidth(0.3);
             pdf.rect(margin, y, leftBoxW, headerH);
             pdf.rect(margin + leftBoxW, y, contentW - leftBoxW, headerH);
 
             pdf.setFont('times', 'bold');
-            pdf.setFontSize(12);
+            pdf.setFontSize(13);
             pdf.text('PT INDOFOOD CBP SUKSES MAKMUR Tbk', margin + leftBoxW / 2, y + 8, { align: 'center' });
-            pdf.setFontSize(11);
-            pdf.text('DIVISI NOODLE - PABRIK CIBITUNG', margin + leftBoxW / 2, y + 14, { align: 'center' });
+            pdf.setFontSize(12);
+            pdf.text('DIVISI NOODLE - PABRIK CIBITUNG', margin + leftBoxW / 2, y + 15, { align: 'center' });
 
             pdf.setFont('times', 'normal');
             pdf.setFontSize(10);
-            var rx = margin + leftBoxW + 3;
-            pdf.text('Kode Form', rx, y + 6); pdf.text(': MGT - 003', rx + 26, y + 6);
-            pdf.text('No. Terbitan', rx, y + 10); pdf.text(': 2.0', rx + 26, y + 10);
-            pdf.text('Tgl. Efektif', rx, y + 14); pdf.text(': 02 Oktober 2023', rx + 26, y + 14);
-            pdf.text('Halaman', rx, y + 18); pdf.text(': 1 / 1', rx + 26, y + 18);
+            var rx = margin + leftBoxW + 4;
+            pdf.text('Kode Form', rx, y + 7); pdf.text(': MGT - 003', rx + 25, y + 7);
+            pdf.text('No. Terbitan', rx, y + 11); pdf.text(': 2.0', rx + 25, y + 11);
+            pdf.text('Tgl. Efektif', rx, y + 15); pdf.text(': 02 Oktober 2023', rx + 25, y + 15);
+            pdf.text('Halaman', rx, y + 19); pdf.text(': 1 / 1', rx + 25, y + 19);
             y += headerH;
 
             // --- Header Row 2: Title + Checkboxes ---
-            var row2H = 24;
-            var titleW = contentW * 0.44;
+            var row2H = 26;
+            var titleW = Math.round(contentW * 0.44);
             pdf.rect(margin, y, titleW, row2H);
             pdf.rect(margin + titleW, y, contentW - titleW, row2H);
 
             pdf.setFont('times', 'bold');
             pdf.setFontSize(13);
-            pdf.text('PENGAMATAN', margin + titleW / 2, y + 9, { align: 'center' });
-            pdf.text('INTERNAL AUDIT', margin + titleW / 2, y + 15, { align: 'center' });
+            pdf.text('PENGAMATAN', margin + titleW / 2, y + 10, { align: 'center' });
+            pdf.text('INTERNAL AUDIT', margin + titleW / 2, y + 17, { align: 'center' });
 
-            // Checkboxes: 3 columns x 3 rows
-            var cbx = margin + titleW + 3;
+            // Checkboxes: 3 columns x 3 rows matching reference exactly
+            var cbAreaX = margin + titleW + 2;
+            var cbAreaW = contentW - titleW - 4;
+            var cbColW = cbAreaW / 3;
+            var cbs = 4.2;
             var cby = y + 4;
-            var cbs = 4;
-            var cbColW = (contentW - titleW - 6) / 3;
-            var cbData = [
-              ['Halal', d.kategori === 'Halal' ? 'V' : ''],
-              ['SMK3', d.kategori === 'SMK3' ? 'V' : ''],
-              ['..........', ''],
-              ['ISO', d.kategori === 'ISO' ? 'V' : ''],
-              ['SML', d.kategori === 'SML' ? 'V' : ''],
-              ['', ''],
-              ['FSSC', d.kategori === 'FSSC' ? 'V' : ''],
-              ['SME', d.kategori === 'SME' ? 'V' : ''],
-              ['', '']
+
+            var cbRows = [
+              [{ label: 'Halal', checked: d.kategori === 'Halal' }, { label: 'SMK3', checked: d.kategori === 'SMK3' }, { label: '..........', checked: false, isDots: true }],
+              [{ label: 'ISO', checked: d.kategori === 'ISO' }, { label: 'SML', checked: d.kategori === 'SML' }, null],
+              [{ label: 'FSSC', checked: d.kategori === 'FSSC' }, { label: 'SME', checked: d.kategori === 'SME' }, null]
             ];
-            pdf.setFont('times', 'bold');
+
             pdf.setFontSize(10);
-            cbData.forEach(function(cb, idx) {
-              var col = idx % 3, row = Math.floor(idx / 3);
-              var cx = cbx + col * cbColW;
-              var cy = cby + row * 7;
-              if (cb[0]) {
+            cbRows.forEach(function(row, ri) {
+              row.forEach(function(cb, ci) {
+                if (!cb) return;
+                var cx = cbAreaX + ci * cbColW;
+                var cy = cby + ri * 7.5;
                 pdf.setLineWidth(0.3);
-                pdf.rect(cx, cy, cbs, 3.5);
-                if (cb[1] === 'V') { pdf.setFontSize(10); pdf.text('V', cx + 1.2, cy + 2.8); }
+                if (cb.isDots) {
+                  pdf.rect(cx, cy, cbs, 3.8);
+                } else {
+                  pdf.rect(cx, cy, cbs, 3.8);
+                  if (cb.checked) {
+                    pdf.setFont('times', 'bold');
+                    pdf.setFontSize(10);
+                    pdf.text('V', cx + 1.3, cy + 3);
+                  }
+                }
+                pdf.setFont('times', 'bold');
                 pdf.setFontSize(10);
-                pdf.text(cb[0], cx + cbs + 1.5, cy + 2.8);
-              }
+                pdf.text(cb.label, cx + cbs + 1.5, cy + 3);
+              });
             });
             y += row2H;
 
@@ -3693,15 +3698,19 @@
             var headH = 12;
             pdf.setFont('times', 'bold');
             pdf.setFontSize(10);
-            // Header "NO."
-            pdf.text('NO.', margin + colW[0] / 2, y + 5, { align: 'center' });
-            // Header "HASIL PENGAMATAN"
-            pdf.text('HASIL PENGAMATAN', margin + colW[0] + colW[1] / 2, y + 5, { align: 'center' });
-            // Header "ELEMEN / KLAUSUL" (two lines)
-            pdf.text('ELEMEN /', margin + colW[0] + colW[1] + colW[2] / 2, y + 4, { align: 'center' });
-            pdf.text('KLAUSUL', margin + colW[0] + colW[1] + colW[2] / 2, y + 8.5, { align: 'center' });
-            // Header "KATEGORI"
-            pdf.text('KATEGORI', margin + colW[0] + colW[1] + colW[2] + colW[3] / 2, y + 5, { align: 'center' });
+            var hx = margin;
+            // NO.
+            pdf.text('NO.', hx + colW[0] / 2, y + 5, { align: 'center' });
+            hx += colW[0];
+            // HASIL PENGAMATAN
+            pdf.text('HASIL PENGAMATAN', hx + colW[1] / 2, y + 5, { align: 'center' });
+            hx += colW[1];
+            // ELEMEN / KLAUSUL (two lines)
+            pdf.text('ELEMEN /', hx + colW[2] / 2, y + 4, { align: 'center' });
+            pdf.text('KLAUSUL', hx + colW[2] / 2, y + 8.5, { align: 'center' });
+            hx += colW[2];
+            // KATEGORI
+            pdf.text('KATEGORI', hx + colW[3] / 2, y + 5, { align: 'center' });
 
             y += headH;
             pdf.line(margin, y, margin + contentW, y);
@@ -3720,6 +3729,7 @@
               return row.type !== 1 && row.type !== 2 && row.type !== 3 && row.hasilPengamatan && row.hasilPengamatan.trim();
             });
             var rn = 1;
+            var tableTop = y;
             dataRows.forEach(function(row) {
               var textLines = pdf.splitTextToSize(row.hasilPengamatan || '', colW[1] - 6);
               var rh = Math.max(8, textLines.length * 4.5 + 4);
@@ -3759,10 +3769,13 @@
               }
             });
 
+            // Bottom line of table
+            pdf.setLineWidth(0.3);
+            pdf.line(margin, y, margin + contentW, y);
+
             // Fill remaining table space with vertical lines down to signature area
-            var sigTop = Math.max(y + 5, pageH - margin - 55);
+            var sigTop = Math.max(y + 8, pageH - margin - 52);
             if (y < sigTop) {
-              pdf.setLineWidth(0.3);
               rx2 = margin;
               for (var ci3 = 0; ci3 <= colW.length; ci3++) {
                 pdf.line(rx2, y, rx2, sigTop);
@@ -3776,16 +3789,16 @@
             y = sigTop + 3;
 
             var sigColW = contentW / 3;
-            var signNameY = y + 30;
+            var signNameY = y + 32;
 
             // Auditor
             pdf.setFont('times', 'bold');
             pdf.setFontSize(11);
             pdf.text('Auditor', margin + sigColW / 2, y + 5, { align: 'center' });
             if (imageMap[d.auditorSignature] && typeof imageMap[d.auditorSignature] === 'string') {
-              try { pdf.addImage(imageMap[d.auditorSignature], 'JPEG', margin + sigColW / 2 - 20, y + 7, 40, 22); } catch(e) {}
+              try { pdf.addImage(imageMap[d.auditorSignature], 'JPEG', margin + sigColW / 2 - 22, y + 7, 44, 24); } catch(e) {}
             }
-            pdf.line(margin + sigColW / 2 - 18, signNameY, margin + sigColW / 2 + 18, signNameY);
+            pdf.line(margin + sigColW / 2 - 20, signNameY, margin + sigColW / 2 + 20, signNameY);
             pdf.setFontSize(10);
             pdf.text(d.auditorName || '', margin + sigColW / 2, signNameY + 4, { align: 'center' });
 
@@ -3795,25 +3808,25 @@
             pdf.setFontSize(11);
             pdf.text('Auditee', ax + sigColW / 2, y + 5, { align: 'center' });
             if (imageMap[d.auditeeSignature] && typeof imageMap[d.auditeeSignature] === 'string') {
-              try { pdf.addImage(imageMap[d.auditeeSignature], 'JPEG', ax + sigColW / 2 - 20, y + 7, 40, 22); } catch(e) {}
+              try { pdf.addImage(imageMap[d.auditeeSignature], 'JPEG', ax + sigColW / 2 - 22, y + 7, 44, 24); } catch(e) {}
             }
-            pdf.line(ax + sigColW / 2 - 18, signNameY, ax + sigColW / 2 + 18, signNameY);
+            pdf.line(ax + sigColW / 2 - 20, signNameY, ax + sigColW / 2 + 20, signNameY);
             pdf.setFontSize(10);
             pdf.text(d.auditeeName || '', ax + sigColW / 2, signNameY + 4, { align: 'center' });
 
             // Legend
             var lx = margin + sigColW * 2;
             pdf.setFont('times', 'bold');
-            pdf.setFontSize(10);
+            pdf.setFontSize(11);
             pdf.text('Kategori :', lx + 2, y + 5);
             pdf.setFont('times', 'italic');
-            pdf.setFontSize(9);
+            pdf.setFontSize(10);
             ['C    = Conformance','Minor = Temuan Minor','Major = Temuan Major','Kritis = Temuan Kritis'].forEach(function(t, i) {
-              pdf.text(t, lx + 2, y + 10 + i * 4);
+              pdf.text(t, lx + 2, y + 11 + i * 5);
             });
 
             // Hash
-            y = pageH - margin - 5;
+            y = pageH - margin - 3;
             pdf.setLineWidth(0.1);
             pdf.setLineDashPattern([1, 1], 0);
             pdf.line(margin, y, margin + contentW, y);
