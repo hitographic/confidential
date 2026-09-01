@@ -3540,14 +3540,7 @@
         }).then(function(res) { return res.json(); }).then(function(res) {
           if (!res.success) { Swal.fire('Gagal', res.message, 'error'); return; }
           var d = res.data;
-          console.log('[Matrika] Detail data:', JSON.stringify({
-            auditorSignature: d.auditorSignature,
-            auditeeSignature: d.auditeeSignature,
-            lampiranCount: (d.lampiran || []).length,
-            lampiran: d.lampiran
-          }));
 
-          // Collect all Drive file IDs to fetch
           var imageMap = {};
           var driveFileIds = [];
 
@@ -3560,43 +3553,36 @@
 
           if (d.auditorSignature && typeof d.auditorSignature === 'string') {
             var fid = extractFileId(d.auditorSignature);
-            if (fid) { driveFileIds.push(fid); imageMap['auditor'] = { fid: fid, key: 'auditor' }; }
+            if (fid) { driveFileIds.push(fid); imageMap['auditor'] = { fid: fid }; }
             else if (d.auditorSignature.indexOf('data:image') === 0) { imageMap['auditor'] = { data: d.auditorSignature }; }
           }
           if (d.auditeeSignature && typeof d.auditeeSignature === 'string') {
             var fid2 = extractFileId(d.auditeeSignature);
-            if (fid2) { driveFileIds.push(fid2); imageMap['auditee'] = { fid: fid2, key: 'auditee' }; }
+            if (fid2) { driveFileIds.push(fid2); imageMap['auditee'] = { fid: fid2 }; }
             else if (d.auditeeSignature.indexOf('data:image') === 0) { imageMap['auditee'] = { data: d.auditeeSignature }; }
           }
           (d.lampiran || []).forEach(function(item, idx) {
-            var lampKey = 'lamp_' + idx;
+            var lk = 'lamp_' + idx;
             if (item.fileId) {
               driveFileIds.push(item.fileId);
-              imageMap[lampKey] = { fid: item.fileId, key: lampKey, idx: idx };
+              imageMap[lk] = { fid: item.fileId, idx: idx };
             } else if (item.url) {
               var fid3 = extractFileId(item.url);
-              if (fid3) { driveFileIds.push(fid3); imageMap[lampKey] = { fid: fid3, key: lampKey, idx: idx }; }
+              if (fid3) { driveFileIds.push(fid3); imageMap[lk] = { fid: fid3, idx: idx }; }
             }
           });
 
-          console.log('[Matrika] Drive file IDs to fetch:', driveFileIds);
-          console.log('[Matrika] ImageMap keys:', Object.keys(imageMap));
-
-          // Fetch all Drive images in one batch
           var chain = Promise.resolve();
           if (driveFileIds.length > 0) {
             var uniqueIds = driveFileIds.filter(function(id, i, a) { return a.indexOf(id) === i; });
-            console.log('[Matrika] Fetching unique IDs:', uniqueIds);
             chain = chain.then(function() {
               return fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'fetchImages', fileIds: uniqueIds }) })
                 .then(function(r) { return r.json(); })
                 .then(function(r) {
-                  console.log('[Matrika] fetchImages response success:', r.success, 'imageCount:', r.images ? Object.keys(r.images).length : 0);
                   if (r.success && r.images) {
                     Object.keys(imageMap).forEach(function(key) {
                       var entry = imageMap[key];
                       if (entry && entry.fid && r.images[entry.fid]) {
-                        console.log('[Matrika] Image loaded for', key, 'fid:', entry.fid, 'dataLength:', r.images[entry.fid].length);
                         imageMap[key] = r.images[entry.fid];
                       } else if (entry && entry.data) {
                         imageMap[key] = entry.data;
@@ -3608,152 +3594,155 @@
           }
 
           chain.then(function() {
-            console.log('[Matrika] Final imageMap:', Object.keys(imageMap).map(function(k) { return k + ':' + (typeof imageMap[k] === 'string' ? 'base64(' + imageMap[k].length + ')' : 'NOT_LOADED'); }));
             Swal.update({ title: 'Generating PDF...', text: 'Memproses dokumen' });
 
             var pdf = new jspdf.jsPDF('p', 'mm', 'a4');
             var pageW = 210, pageH = 297;
-            var marginL = 10, marginR = 10, marginTop = 10, marginBottom = 10;
-            var contentW = pageW - marginL - marginR;
-            var y = marginTop;
 
             var months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
             var dt = new Date(d.tanggal);
             var dateStr = dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
 
-            // === PAGE 1 ===
-            // Outer page border - thick
+            // === PAGE 1 - persis sesuai HTML layout ===
+            // Outer border (2px = 0.5mm)
+            var bx = 8, by = 8;
+            var bw = pageW - 16, bh = pageH - 16;
             pdf.setDrawColor(0);
-            pdf.setLineWidth(0.8);
-            pdf.rect(marginL, marginTop, contentW, pageH - marginTop - marginBottom);
+            pdf.setLineWidth(0.5);
+            pdf.rect(bx, by, bw, bh);
 
-            // --- Header Row 1: Company + Form Info ---
-            var leftW = Math.round(contentW * 0.55);
-            var rightW = contentW - leftW;
-            var row1H = 24;
+            var cx = bx, cy = by;
+            var cw = bw;
+
+            // --- ROW 1: Company (58%) + Form Info (42%) ---
+            var r1H = 22;
+            var r1LW = cw * 0.58;
+            var r1RW = cw - r1LW;
+
+            // Left: Company name
             pdf.setLineWidth(0.3);
+            pdf.rect(cx, cy, r1LW, r1H);
+            // Vertical divider Row 1
+            pdf.line(cx + r1LW, cy, cx + r1LW, cy + r1H);
 
-            // Left cell - Company name
-            pdf.rect(marginL, y, leftW, row1H);
             pdf.setFont('times', 'bold');
             pdf.setFontSize(14);
-            pdf.text('PT INDOFOOD CBP SUKSES MAKMUR Tbk', marginL + leftW / 2, y + 9, { align: 'center' });
+            pdf.text('PT INDOFOOD CBP SUKSES MAKMUR Tbk', cx + r1LW / 2, cy + 8, { align: 'center' });
             pdf.setFontSize(12);
-            pdf.text('DIVISI NOODLE - PABRIK CIBITUNG', marginL + leftW / 2, y + 17, { align: 'center' });
+            pdf.text('DIVISI NOODLE - PABRIK CIBITUNG', cx + r1LW / 2, cy + 16, { align: 'center' });
 
-            // Right cell - Form info
-            var rx = marginL + leftW;
-            pdf.rect(rx, y, rightW, row1H);
+            // Right: Form info
             pdf.setFont('times', 'bold');
-            pdf.setFontSize(10);
-            var fiX = rx + 3;
-            var fiValX = rx + 32;
-            pdf.text('Kode Form', fiX, y + 7);
-            pdf.text(': MGT - 003', fiValX, y + 7);
-            pdf.text('No. Terbitan', fiX, y + 11);
-            pdf.text(': 2.0', fiValX, y + 11);
-            pdf.text('Tgl. Efektif', fiX, y + 15);
-            pdf.text(': 02 Oktober 2023', fiValX, y + 15);
-            pdf.text('Halaman', fiX, y + 19);
-            pdf.text(': 1 / 1', fiValX, y + 19);
-            y += row1H;
+            pdf.setFontSize(12);
+            var fiX = cx + r1LW + 3;
+            var fiValX = cx + r1LW + 30;
+            pdf.text('Kode Form', fiX, cy + 6);
+            pdf.text(': MGT - 003', fiValX, cy + 6);
+            pdf.text('No. Terbitan', fiX, cy + 10.5);
+            pdf.text(': 2.0', fiValX, cy + 10.5);
+            pdf.text('Tgl. Efektif', fiX, cy + 15);
+            pdf.text(': 02 Oktober 2023', fiValX, cy + 15);
+            pdf.text('Halaman', fiX, cy + 19.5);
+            pdf.text(': 1 / 1', fiValX, cy + 19.5);
 
-            // --- Header Row 2: Title + Checkboxes ---
-            var row2H = 28;
-            var titleW = Math.round(contentW * 0.42);
-            var cbW = contentW - titleW;
+            // Border bottom Row 1
+            pdf.line(bx, cy + r1H, bx + cw, cy + r1H);
+            cy += r1H;
 
-            // Left cell - Title
-            pdf.rect(marginL, y, titleW, row2H);
+            // --- ROW 2: Title (45%) + Checkboxes (55%) ---
+            var r2H = 28;
+            var r2LW = cw * 0.45;
+            var r2RW = cw - r2LW;
+
+            // Left: Title
+            pdf.rect(cx, cy, r2LW, r2H);
             pdf.setFont('times', 'bold');
-            pdf.setFontSize(14);
-            pdf.text('PENGAMATAN', marginL + titleW / 2, y + 11, { align: 'center' });
-            pdf.text('INTERNAL AUDIT', marginL + titleW / 2, y + 19, { align: 'center' });
+            pdf.setFontSize(16);
+            pdf.text('PENGAMATAN', cx + r2LW / 2, cy + 11, { align: 'center' });
+            pdf.text('INTERNAL AUDIT', cx + r2LW / 2, cy + 20, { align: 'center' });
 
-            // Right cell - Checkboxes (3 columns x 3 rows)
-            pdf.rect(marginL + titleW, y, cbW, row2H);
-            var cbStartX = marginL + titleW + 3;
-            var cbStartY = y + 3;
-            var cbBoxSize = 4;
-            var cbColGap = cbW / 3;
-            var cbRowGap = 8;
+            // Right: Checkboxes
+            pdf.line(cx + r2LW, cy, cx + r2LW, cy + r2H);
+            var cbX = cx + r2LW + 3;
+            var cbY = cy + 3;
+            var cbSize = 5;
+            var cbColW = (r2RW - 6) / 3;
+            var cbRowH = 8;
 
-            var cbData = [
-              [{ label: 'Halal', checked: d.kategori === 'Halal' }, { label: 'SMK3', checked: d.kategori === 'SMK3' }, { label: '..........', isDots: true }],
-              [{ label: 'ISO', checked: d.kategori === 'ISO' }, { label: 'SML', checked: d.kategori === 'SML' }, null],
-              [{ label: 'FSSC', checked: d.kategori === 'FSSC' }, { label: 'SME', checked: d.kategori === 'SME' }, null]
+            var cbLayout = [
+              [{ l: 'Halal', c: d.kategori === 'Halal' }, { l: 'SMK3', c: d.kategori === 'SMK3' }, { l: '..........', dots: true }],
+              [{ l: 'ISO', c: d.kategori === 'ISO' }, { l: 'SML', c: d.kategori === 'SML' }, null],
+              [{ l: 'FSSC', c: d.kategori === 'FSSC' }, { l: 'SME', c: d.kategori === 'SME' }, null]
             ];
 
-            cbData.forEach(function(row, ri) {
+            cbLayout.forEach(function(row, ri) {
               row.forEach(function(cb, ci) {
                 if (!cb) return;
-                var bx = cbStartX + ci * cbColGap;
-                var by = cbStartY + ri * cbRowGap;
+                var tx = cbX + ci * cbColW;
+                var ty = cbY + ri * cbRowH;
                 pdf.setLineWidth(0.3);
-                pdf.rect(bx, by, cbBoxSize, 4.5);
-                if (cb.checked) {
-                  pdf.setFont('times', 'bold');
-                  pdf.setFontSize(11);
-                  pdf.text('V', bx + 0.8, by + 3.5);
+                if (!cb.dots) {
+                  pdf.rect(tx, ty, cbSize, 5);
+                  if (cb.c) {
+                    pdf.setFont('times', 'bold');
+                    pdf.setFontSize(12);
+                    pdf.text('V', tx + 1.2, ty + 4);
+                  }
                 }
-                if (cb.isDots) {
-                  pdf.setFont('times', 'normal');
-                  pdf.setFontSize(10);
-                  pdf.text(cb.label, bx + cbBoxSize + 2, by + 3.5);
-                } else {
-                  pdf.setFont('times', 'bold');
-                  pdf.setFontSize(10);
-                  pdf.text(cb.label, bx + cbBoxSize + 2, by + 3.5);
-                }
+                pdf.setFont('times', 'bold');
+                pdf.setFontSize(13);
+                var labelX = cb.dots ? tx : tx + cbSize + 2;
+                pdf.text(cb.l, labelX, ty + 4);
               });
             });
-            y += row2H;
 
-            // --- Header Row 3: Dept + Date ---
-            var row3H = 14;
-            pdf.setLineWidth(0.3);
-            pdf.rect(marginL, y, contentW, row3H);
+            // Border bottom Row 2
+            pdf.line(bx, cy + r2H, bx + cw, cy + r2H);
+            cy += r2H;
+
+            // --- ROW 3: Dept + Date ---
+            var r3H = 14;
             pdf.setFont('times', 'bold');
-            pdf.setFontSize(11);
-            pdf.text('Departemen', marginL + 4, y + 6);
-            pdf.text(': ' + (d.departemen || '-'), marginL + 32, y + 6);
-            pdf.text('Tanggal', marginL + 4, y + 11);
-            pdf.text(': ' + dateStr, marginL + 32, y + 11);
-            y += row3H;
+            pdf.setFontSize(13);
+            pdf.text('Departemen', cx + 5, cy + 6);
+            pdf.text(': ' + (d.departemen || '-'), cx + 35, cy + 6);
+            pdf.text('Tanggal', cx + 5, cy + 11);
+            pdf.text(': ' + dateStr, cx + 35, cy + 11);
 
-            // --- Data Table ---
-            var colW = [contentW * 0.06, contentW * 0.54, contentW * 0.20, contentW * 0.20];
+            // Border bottom Row 3
+            pdf.line(bx, cy + r3H, bx + cw, cy + r3H);
+            cy += r3H;
+
+            // --- DATA TABLE ---
+            var colW = [cw * 0.05, cw * 0.65, cw * 0.15, cw * 0.15];
             var headH = 12;
 
-            // Header row
-            pdf.setLineWidth(0.3);
-            pdf.line(marginL, y, marginL + contentW, y);
+            // Header row border top (already drawn as Row 3 bottom)
+            // Draw header text
             pdf.setFont('times', 'bold');
-            pdf.setFontSize(10);
+            pdf.setFontSize(11);
+            var tx = cx;
 
-            var hx = marginL;
-            // NO.
-            pdf.text('NO.', hx + colW[0] / 2, y + 5, { align: 'center' });
-            hx += colW[0];
-            // HASIL PENGAMATAN
-            pdf.text('HASIL PENGAMATAN', hx + colW[1] / 2, y + 5, { align: 'center' });
-            hx += colW[1];
-            // ELEMEN / KLAUSUL
-            pdf.text('ELEMEN /', hx + colW[2] / 2, y + 4, { align: 'center' });
-            pdf.text('KLAUSUL', hx + colW[2] / 2, y + 9, { align: 'center' });
-            hx += colW[2];
-            // KATEGORI
-            pdf.text('KATEGORI', hx + colW[3] / 2, y + 5, { align: 'center' });
-
-            y += headH;
-            pdf.line(marginL, y, marginL + contentW, y);
-
-            // Column separators for header
-            hx = marginL;
+            // Vertical column separators for header
             for (var ci = 0; ci <= colW.length; ci++) {
-              pdf.line(hx, y - headH, hx, y);
-              if (ci < colW.length) hx += colW[ci];
+              pdf.line(tx, cy, tx, cy + headH);
+              if (ci < colW.length) tx += colW[ci];
             }
+
+            // Header text
+            tx = cx;
+            pdf.text('NO.', tx + colW[0] / 2, cy + 7, { align: 'center' });
+            tx += colW[0];
+            pdf.text('HASIL PENGAMATAN', tx + colW[1] / 2, cy + 7, { align: 'center' });
+            tx += colW[1];
+            pdf.text('ELEMEN /', tx + colW[2] / 2, cy + 5, { align: 'center' });
+            pdf.text('KLAUSUL', tx + colW[2] / 2, cy + 10, { align: 'center' });
+            tx += colW[2];
+            pdf.text('KATEGORI', tx + colW[3] / 2, cy + 7, { align: 'center' });
+
+            cy += headH;
+            // Header bottom border
+            pdf.line(bx, cy, bx + cw, cy);
 
             // Data rows
             pdf.setFont('times', 'normal');
@@ -3764,186 +3753,196 @@
             var rn = 1;
 
             dataRows.forEach(function(row) {
-              var textContent = String(row.hasilPengamatan || '');
-              var textLines = textContent ? pdf.splitTextToSize(textContent, colW[1] - 6) : [''];
-              var rh = Math.max(8, textLines.length * 4.5 + 4);
+              var txt = String(row.hasilPengamatan || '');
+              var lines = txt ? pdf.splitTextToSize(txt, colW[1] - 6) : [''];
+              var rh = Math.max(7, lines.length * 4 + 3);
 
-              if (y + rh > pageH - marginBottom - 55) { pdf.addPage(); y = marginTop; }
-
-              pdf.setLineWidth(0.3);
-              pdf.line(marginL, y, marginL + contentW, y);
-              var rx2 = marginL;
+              // Draw vertical column lines + row content
+              tx = cx;
 
               // NO
               pdf.setFont('times', 'bold');
-              pdf.text(String(rn++), rx2 + colW[0] / 2, y + 5, { align: 'center' });
-              rx2 += colW[0];
+              pdf.text(String(rn++), tx + colW[0] / 2, cy + 5, { align: 'center' });
+              tx += colW[0];
 
               // HASIL PENGAMATAN
               pdf.setFont('times', 'normal');
-              pdf.text(textLines, rx2 + 3, y + 4);
-              rx2 += colW[1];
+              pdf.text(lines, tx + 3, cy + 4);
+              tx += colW[1];
 
               // ELEMEN/KLAUSUL
-              pdf.text(String(row.kriteria || '-'), rx2 + colW[2] / 2, y + 5, { align: 'center' });
-              rx2 += colW[2];
+              pdf.text(String(row.kriteria || '-'), tx + colW[2] / 2, cy + 5, { align: 'center' });
+              tx += colW[2];
 
               // KATEGORI
-              pdf.text(String(row.kategoriVal || '-'), rx2 + colW[3] / 2, y + 5, { align: 'center' });
+              pdf.text(String(row.kategoriVal || '-'), tx + colW[3] / 2, cy + 5, { align: 'center' });
 
-              y += rh;
-              pdf.setLineWidth(0.1);
-              pdf.line(marginL, y, marginL + contentW, y);
+              cy += rh;
+
+              // Row separator line
+              pdf.setLineWidth(0.15);
+              pdf.line(bx, cy, bx + cw, cy);
               pdf.setLineWidth(0.3);
 
               // Vertical column separators
-              rx2 = marginL;
+              tx = cx;
               for (var ci2 = 0; ci2 <= colW.length; ci2++) {
-                pdf.line(rx2, y - rh, rx2, y);
-                if (ci2 < colW.length) rx2 += colW[ci2];
+                pdf.line(tx, cy - rh, tx, cy);
+                if (ci2 < colW.length) tx += colW[ci2];
               }
             });
 
-            // Bottom line of table
-            pdf.setLineWidth(0.3);
-            pdf.line(marginL, y, marginL + contentW, y);
+            // After data rows, extend vertical lines down to signature area
+            // Signature area starts at fixed position from bottom
+            var sigAreaH = 50;
+            var sigTop = by + bh - sigAreaH;
+            var lastDataRowY = cy;
 
-            // Fill remaining table space with vertical lines down to signature area
-            var sigAreaH = 48;
-            var sigTop = pageH - marginBottom - sigAreaH;
-            if (y < sigTop) {
-              rx2 = marginL;
+            if (lastDataRowY < sigTop) {
+              // Bottom border of table area
+              pdf.setLineWidth(0.3);
+              pdf.line(bx, lastDataRowY, bx + cw, lastDataRowY);
+
+              // Extend vertical lines from last data row to sigTop
+              tx = cx;
               for (var ci3 = 0; ci3 <= colW.length; ci3++) {
-                pdf.line(rx2, y, rx2, sigTop);
-                if (ci3 < colW.length) rx2 += colW[ci3];
+                pdf.line(tx, lastDataRowY, tx, sigTop);
+                if (ci3 < colW.length) tx += colW[ci3];
               }
+              cy = sigTop;
             }
 
-            // --- Signature area ---
+            // --- SIGNATURE AREA ---
+            // Top border of signature area
             pdf.setLineWidth(0.3);
-            pdf.line(marginL, sigTop, marginL + contentW, sigTop);
+            pdf.line(bx, cy, bx + cw, cy);
 
-            var sigY = sigTop + 3;
-            var sigColW = contentW / 3;
-            var sigImgW = 40;
-            var sigImgH = 20;
-            var sigNameLineY = sigY + sigImgH + 8;
+            // Bottom border of signature area (just above hash)
+            var hashH = 8;
+            var sigBottom = by + bh - hashH;
+            pdf.line(bx, sigBottom, bx + cw, sigBottom);
 
-            // Auditor column
-            var col1X = marginL;
+            var sigY = cy + 3;
+            var sigColW = cw / 3;
+            var sigImgW = 42;
+            var sigImgH = 24;
+
+            // --- Auditor ---
+            var col1X = bx;
             pdf.setFont('times', 'bold');
-            pdf.setFontSize(11);
+            pdf.setFontSize(12);
             pdf.text('Auditor', col1X + sigColW / 2, sigY + 3, { align: 'center' });
+
             if (imageMap['auditor'] && typeof imageMap['auditor'] === 'string' && imageMap['auditor'].length > 100) {
-              try { pdf.addImage(imageMap['auditor'], 'PNG', col1X + sigColW / 2 - sigImgW / 2, sigY + 5, sigImgW, sigImgH); } catch(e) { console.error('[Matrika] Auditor image error:', e); }
+              try {
+                var fmt1 = imageMap['auditor'].indexOf('image/png') > -1 ? 'PNG' : 'JPEG';
+                pdf.addImage(imageMap['auditor'], fmt1, col1X + sigColW / 2 - sigImgW / 2, sigY + 6, sigImgW, sigImgH);
+              } catch(e) { console.error('[Matrika] Auditor img err:', e); }
             }
-            pdf.line(col1X + sigColW / 2 - 20, sigNameLineY, col1X + sigColW / 2 + 20, sigNameLineY);
-            pdf.setFont('times', 'bold');
-            pdf.setFontSize(10);
-            pdf.text(d.auditorName || '', col1X + sigColW / 2, sigNameLineY + 5, { align: 'center' });
 
-            // Auditee column
-            var col2X = marginL + sigColW;
+            var nameLineY = sigY + sigImgH + 12;
+            pdf.line(col1X + sigColW / 2 - 22, nameLineY, col1X + sigColW / 2 + 22, nameLineY);
             pdf.setFont('times', 'bold');
             pdf.setFontSize(11);
+            pdf.text(d.auditorName || '', col1X + sigColW / 2, nameLineY + 5, { align: 'center' });
+
+            // --- Auditee ---
+            var col2X = bx + sigColW;
+            pdf.setFont('times', 'bold');
+            pdf.setFontSize(12);
             pdf.text('Auditee', col2X + sigColW / 2, sigY + 3, { align: 'center' });
-            if (imageMap['auditee'] && typeof imageMap['auditee'] === 'string' && imageMap['auditee'].length > 100) {
-              try { pdf.addImage(imageMap['auditee'], 'PNG', col2X + sigColW / 2 - sigImgW / 2, sigY + 5, sigImgW, sigImgH); } catch(e) { console.error('[Matrika] Auditee image error:', e); }
-            }
-            pdf.line(col2X + sigColW / 2 - 20, sigNameLineY, col2X + sigColW / 2 + 20, sigNameLineY);
-            pdf.setFont('times', 'bold');
-            pdf.setFontSize(10);
-            pdf.text(d.auditeeName || '', col2X + sigColW / 2, sigNameLineY + 5, { align: 'center' });
 
-            // Kategori legend column
-            var col3X = marginL + sigColW * 2;
+            if (imageMap['auditee'] && typeof imageMap['auditee'] === 'string' && imageMap['auditee'].length > 100) {
+              try {
+                var fmt2 = imageMap['auditee'].indexOf('image/png') > -1 ? 'PNG' : 'JPEG';
+                pdf.addImage(imageMap['auditee'], fmt2, col2X + sigColW / 2 - sigImgW / 2, sigY + 6, sigImgW, sigImgH);
+              } catch(e) { console.error('[Matrika] Auditee img err:', e); }
+            }
+
+            pdf.line(col2X + sigColW / 2 - 22, nameLineY, col2X + sigColW / 2 + 22, nameLineY);
             pdf.setFont('times', 'bold');
             pdf.setFontSize(11);
-            pdf.text('Kategori :', col3X + 3, sigY + 3);
+            pdf.text(d.auditeeName || '', col2X + sigColW / 2, nameLineY + 5, { align: 'center' });
+
+            // --- Kategori Legend ---
+            var col3X = bx + sigColW * 2;
+            pdf.setFont('times', 'bold');
+            pdf.setFontSize(12);
+            pdf.text('Kategori :', col3X + 5, sigY + 3);
             pdf.setFont('times', 'italic');
-            pdf.setFontSize(10);
-            var kategoriList = [
-              'C    = Conformance',
-              'Minor = Temuan Minor',
-              'Major = Temuan Major',
-              'Kritis = Temuan Kritis'
-            ];
-            kategoriList.forEach(function(t, i) {
-              pdf.text(t, col3X + 3, sigY + 11 + i * 5.5);
+            pdf.setFontSize(11);
+            var kats = ['C    = Conformance','Minor = Temuan Minor','Major = Temuan Major','Kritis = Temuan Kritis'];
+            kats.forEach(function(t, i) {
+              pdf.text(t, col3X + 5, sigY + 12 + i * 6);
             });
 
-            // Hash at very bottom
-            var hashY = pageH - marginBottom - 2;
+            // --- HASH ---
             pdf.setLineWidth(0.1);
             pdf.setLineDashPattern([1, 1], 0);
-            pdf.line(marginL, hashY, marginL + contentW, hashY);
+            pdf.line(bx, sigBottom, bx + cw, sigBottom);
             pdf.setLineDashPattern([], 0);
             pdf.setFont('times', 'normal');
-            pdf.setFontSize(7);
-            pdf.setTextColor(128);
-            pdf.text('Hash Integritas (SHA-256): ' + (d.hashIntegritas || 'Belum disubmit'), marginL + 2, hashY + 3);
+            pdf.setFontSize(8);
+            pdf.setTextColor(130);
+            pdf.text('Hash Integritas (SHA-256): ' + (d.hashIntegritas || 'Belum disubmit'), bx + 5, sigBottom + 5);
             pdf.setTextColor(0);
 
-            // === PAGE 2: Lampiran ===
+            // === PAGE 2: LAMPIRAN ===
             if (d.lampiran && d.lampiran.length > 0) {
               pdf.addPage();
-              y = marginTop;
+
+              // Outer border same as page 1
+              pdf.setDrawColor(0);
+              pdf.setLineWidth(0.5);
+              pdf.rect(bx, by, bw, bh);
 
               // Title "LAMPIRAN" centered + underlined
+              var titleY = by + 12;
               pdf.setFont('times', 'bold');
-              pdf.setFontSize(15);
-              pdf.text('LAMPIRAN', pageW / 2, y + 8, { align: 'center' });
+              pdf.setFontSize(16);
+              pdf.text('LAMPIRAN', bx + cw / 2, titleY, { align: 'center' });
               var tw = pdf.getTextWidth('LAMPIRAN');
               pdf.setLineWidth(0.3);
-              pdf.line(pageW / 2 - tw / 2 - 2, y + 10, pageW / 2 + tw / 2 + 2, y + 10);
-              y += 18;
+              pdf.line(bx + cw / 2 - tw / 2, titleY + 2, bx + cw / 2 + tw / 2, titleY + 2);
 
               // 2-column grid
-              var gridGap = 12;
-              var cellW = (contentW - gridGap * 3) / 2;
+              var gridPad = 15;
+              var gridStartY = titleY + 10;
+              var cellGap = 12;
+              var cellW = (cw - gridPad * 2 - cellGap) / 2;
               var cellH = cellW;
 
               d.lampiran.forEach(function(item, idx) {
                 var col = idx % 2;
                 var row = Math.floor(idx / 2);
-                var ix = marginL + gridGap + col * (cellW + gridGap);
-                var iy = y + gridGap + row * (cellH + gridGap + 8);
+                var ix = bx + gridPad + col * (cellW + cellGap);
+                var iy = gridStartY + gridPad + row * (cellH + 20);
 
-                if (iy + cellH + 10 > pageH - marginBottom) { pdf.addPage(); y = marginTop + 18; iy = y + gridGap; }
+                if (iy + cellH + 15 > by + bh) { pdf.addPage(); gridStartY = by + 12 + 10; iy = gridStartY + gridPad; }
 
-                // Image border box
+                // Image border
                 pdf.setDrawColor(0);
                 pdf.setLineWidth(0.2);
                 pdf.rect(ix, iy, cellW, cellH);
 
-                // Try to insert image
-                var lampKey = 'lamp_' + idx;
-                if (imageMap[lampKey] && typeof imageMap[lampKey] === 'string' && imageMap[lampKey].length > 100) {
+                // Insert image
+                var lk = 'lamp_' + idx;
+                if (imageMap[lk] && typeof imageMap[lk] === 'string' && imageMap[lk].length > 100) {
                   try {
-                    var fmt = imageMap[lampKey].indexOf('image/png') > -1 ? 'PNG' : 'JPEG';
-                    pdf.addImage(imageMap[lampKey], fmt, ix + 1, iy + 1, cellW - 2, cellH - 2);
-                  } catch(e) {
-                    console.error('[Matrika] Lampiran image error idx=' + idx + ':', e);
-                  }
-                } else {
-                  // Placeholder text if image not loaded
-                  pdf.setFont('times', 'italic');
-                  pdf.setFontSize(9);
-                  pdf.setTextColor(180);
-                  pdf.text('[Gambar tidak tersedia]', ix + cellW / 2, iy + cellH / 2, { align: 'center' });
-                  pdf.setTextColor(0);
+                    var fmt = imageMap[lk].indexOf('image/png') > -1 ? 'PNG' : 'JPEG';
+                    pdf.addImage(imageMap[lk], fmt, ix + 1, iy + 1, cellW - 2, cellH - 2);
+                  } catch(e) { console.error('[Matrika] Lamp err idx=' + idx, e); }
                 }
 
                 // Caption
                 pdf.setFont('times', 'italic');
-                pdf.setFontSize(9);
-                pdf.setTextColor(0);
-                var caption = item.caption || ('Lampiran ke-' + (idx + 1));
-                pdf.text(caption, ix + cellW / 2, iy + cellH + 5, { align: 'center' });
+                pdf.setFontSize(10);
+                var cap = item.caption || ('Lampiran ke-' + (idx + 1));
+                pdf.text(cap, ix + cellW / 2, iy + cellH + 8, { align: 'center' });
               });
             }
 
-            // Download PDF
+            // Download
             var fn = (d.departemen || 'Dept') + '-' + (d.auditorName || 'Auditor') + '-' + (d.auditeeName || 'Auditee') + '-';
             var dd = String(dt.getDate()).padStart(2, '0');
             var mm = String(dt.getMonth() + 1).padStart(2, '0');
@@ -3952,7 +3951,7 @@
             Swal.close();
 
           }).catch(function(err) {
-            console.error('[Matrika] PDF generation error:', err);
+            console.error('[Matrika] PDF gen error:', err);
             Swal.fire('Error', 'Gagal generate PDF: ' + err.message, 'error');
           });
 
