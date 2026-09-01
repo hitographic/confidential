@@ -1,0 +1,418 @@
+<!-- MODAL: INPUT AUDITEE -->
+<div id="modalNewData" class="modal-overlay hidden">
+  <div class="modal-content">
+    <h3>Mulai Audit Baru</h3>
+    <div class="form-group" id="inputAuditeeNameGroup" style="display: none;">
+      <input type="text" id="inputAuditeeName" value="(Menunggu TTD)">
+    </div>
+    <div class="form-group">
+      <label>Departemen</label>
+      <select id="inputDepartemen">
+        <option value="">- Pilih Departemen -</option>
+      </select>
+    </div>
+    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+      <button class="btn btn-outline" onclick="closeModal('modalNewData')">Batal</button>
+      <button class="btn btn-primary" onclick="startNewAudit()">Mulai Checklist</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PIN LIST SIGN -->
+<div id="modalListSign" class="modal-overlay hidden">
+  <div class="glass-card modal-content" style="max-width: 400px; text-align: center;">
+    <h3 id="listSignTitle">Tanda Tangan</h3>
+    <input type="hidden" id="listSignId">
+    <input type="hidden" id="listSignRole">
+    
+    <div id="listSignAuditorArea" class="hidden">
+      <p>Silakan masukkan PIN Anda untuk menandatangani dokumen ini.</p>
+      <input type="password" id="listSignPin" class="form-group" placeholder="6 Digit PIN" maxlength="6"
+        style="text-align: center; font-size: 1.5rem; letter-spacing: 5px;">
+    </div>
+    
+    <div id="listSignAuditeeArea" class="hidden">
+      <input type="text" id="inputSignAuditeeName" class="form-group" placeholder="Nama Auditee..." style="width:100%; margin-bottom:10px; text-align:center;">
+      <p>Silakan tanda tangan di bawah ini:</p>
+      <div class="sign-toolbar" style="display: flex; gap: 10px; align-items: center; background: #f8fafc; padding: 10px; border-radius: 8px 8px 0 0; border: 1px solid var(--border); border-bottom: none;">
+        <div style="display: flex; gap: 6px;">
+          <div class="color-btn active" style="width: 22px; height: 22px; border-radius: 50%; background: #000000; cursor: pointer; border: 2px solid white; box-shadow: 0 0 0 1px #000;" onclick="setSignColor(this, '#000000')"></div>
+          <div class="color-btn" style="width: 22px; height: 22px; border-radius: 50%; background: #333333; cursor: pointer; border: 2px solid transparent;" onclick="setSignColor(this, '#333333')"></div>
+          <div class="color-btn" style="width: 22px; height: 22px; border-radius: 50%; background: #00008B; cursor: pointer; border: 2px solid transparent;" onclick="setSignColor(this, '#00008B')"></div>
+          <div class="color-btn" style="width: 22px; height: 22px; border-radius: 50%; background: #1E90FF; cursor: pointer; border: 2px solid transparent;" onclick="setSignColor(this, '#1E90FF')"></div>
+        </div>
+        <div style="width: 1px; height: 20px; background: #cbd5e1; margin: 0 5px;"></div>
+        <input type="range" min="1" max="6" value="3" style="width: 70px; cursor: pointer;" oninput="setSignThickness(this.value)">
+        <div style="flex-grow: 1;"></div>
+        <label style="cursor: pointer; color: var(--secondary); margin: 0; font-size: 16px;" title="Upload Gambar TTD">
+          <i class="fa-solid fa-image"></i>
+          <input type="file" accept="image/*" style="display:none;" onchange="handleSignUpload(event, 'canvasListAuditee')">
+        </label>
+        <div style="cursor: pointer; color: #ef4444; margin-left: 12px; font-size: 16px;" title="Hapus Canvas" onclick="clearCanvas('canvasListAuditee')">
+          <i class="fa-solid fa-trash-can"></i>
+        </div>
+      </div>
+      <div style="background: #fff; border: 1px solid var(--border); border-radius: 0 0 8px 8px; overflow: hidden;">
+        <canvas id="canvasListAuditee" class="sign-canvas" width="300" height="150" style="display:block; margin: 0 auto; width: 100%; height: 150px; border:none;"></canvas>
+      </div>
+    </div>
+
+    <div class="action-group" style="margin-top: 20px; justify-content: center;">
+      <button class="btn btn-outline" onclick="closeModal('modalListSign')">Batal</button>
+      <button class="btn btn-primary" id="btnListSignProses" onclick="processListSign()">Simpan TTD</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: REGISTER SIGNATURE -->
+<div id="modalRegisterSignature" class="modal-overlay hidden">
+  <div class="modal-content" style="max-width: 560px;">
+    
+    <!-- Header -->
+    <div style="text-align: center; margin-bottom: 20px;">
+      <div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #2563eb); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+        <i class="fa-solid fa-pen-nib" style="color: white; font-size: 24px;"></i>
+      </div>
+      <h3 style="margin: 0 0 4px 0; font-size: 18px;">Daftarkan Tanda Tangan Digital</h3>
+      <p style="margin: 0; font-size: 13px; color: var(--text-light);">Buat tanda tangan Anda dan lindungi dengan PIN</p>
+    </div>
+
+    <!-- Status TTE (filled from DB) -->
+    <div id="sigStatusCard" style="display: none; background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 1px solid #bbf7d0; border-radius: 10px; padding: 14px 16px; margin-bottom: 18px;">
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+        <i class="fa-solid fa-circle-check" style="color: #16a34a; font-size: 18px;"></i>
+        <span style="font-weight: 600; color: #166534; font-size: 14px;">TTE Anda Sudah Terdaftar</span>
+      </div>
+      <div style="font-size: 12px; color: #166534; line-height: 1.6;">
+        <div><i class="fa-regular fa-calendar" style="width: 16px;"></i> Didaftarkan: <span id="sigCreatedAt">-</span></div>
+        <div><i class="fa-solid fa-rotate" style="width: 16px;"></i> Diperbarui: <span id="sigUpdatedAt">-</span></div>
+      </div>
+    </div>
+
+    <!-- UU ITE Info -->
+    <details style="margin-bottom: 18px; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;">
+      <summary style="padding: 12px 16px; background: #f8fafc; cursor: pointer; font-weight: 600; font-size: 13px; color: var(--text-dark); list-style: none; display: flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-scale-balanced" style="color: var(--secondary);"></i>
+        <span>Ketentuan Hukum TTE (UU ITE Pasal 11)</span>
+        <i class="fa-solid fa-chevron-down" style="margin-left: auto; font-size: 10px; color: #94a3b8;"></i>
+      </summary>
+      <div style="padding: 14px 16px; font-size: 12px; line-height: 1.7; color: #475569; border-top: 1px solid #e2e8f0;">
+        <p style="margin: 0 0 8px 0;">Tanda Tangan Elektronik (TTE) memiliki <b>kekuatan hukum sah</b> menurut Pasal 11 UU No. 11/2008 tentang Informasi dan Transaksi Elektronik jika memenuhi:</p>
+        <ul style="margin: 0; padding-left: 18px;">
+          <li>Data pembuatan hanya diketahui <b>penandatangan</b></li>
+          <li>Sistem berada di bawah <b>kendali penuh</b> penandatangan</li>
+          <li>Perubahan TTE dapat <b>terdeteksi</b></li>
+          <li>Perubahan informasi terkait dapat <b>terdeteksi</b></li>
+          <li>Dapat mengidentifikasi <b>keaslian & identitas</b> penandatangan</li>
+          <li>Dapat membuktikan <b>keutuhan data</b></li>
+        </ul>
+        <p style="margin: 10px 0 0 0; padding: 8px 10px; background: #eff6ff; border-radius: 6px; font-size: 11px; color: #1e40af;">
+          <i class="fa-solid fa-shield-halved"></i> PIN Anda di-hash dengan <b>SHA-256</b> — tidak ada yang mengetahui PIN asli Anda, termasuk sistem.
+        </p>
+      </div>
+    </details>
+
+    <!-- Canvas Toolbar -->
+    <div class="sign-toolbar" style="display: flex; gap: 8px; align-items: center; background: #f8fafc; padding: 10px 12px; border-radius: 10px 10px 0 0; border: 1px solid #e2e8f0; border-bottom: none;">
+      <div style="display: flex; gap: 5px;">
+        <div class="color-btn active" style="width: 22px; height: 22px; border-radius: 50%; background: #000000; cursor: pointer; border: 2px solid white; box-shadow: 0 0 0 1px #000;" onclick="setSignColor(this, '#000000')"></div>
+        <div class="color-btn" style="width: 22px; height: 22px; border-radius: 50%; background: #333333; cursor: pointer; border: 2px solid transparent;" onclick="setSignColor(this, '#333333')"></div>
+        <div class="color-btn" style="width: 22px; height: 22px; border-radius: 50%; background: #00008B; cursor: pointer; border: 2px solid transparent;" onclick="setSignColor(this, '#00008B')"></div>
+        <div class="color-btn" style="width: 22px; height: 22px; border-radius: 50%; background: #1E90FF; cursor: pointer; border: 2px solid transparent;" onclick="setSignColor(this, '#1E90FF')"></div>
+      </div>
+      <div style="width: 1px; height: 20px; background: #cbd5e1; margin: 0 4px;"></div>
+      <input type="range" min="1" max="6" value="3" style="width: 60px; cursor: pointer;" oninput="setSignThickness(this.value)">
+      <div style="flex-grow: 1;"></div>
+      <label style="cursor: pointer; color: var(--secondary); margin: 0; font-size: 15px;" title="Upload Gambar TTD">
+        <i class="fa-solid fa-image"></i>
+        <input type="file" accept="image/*" style="display:none;" onchange="handleSignUpload(event, 'canvasRegisterSign')">
+      </label>
+      <div style="cursor: pointer; color: #ef4444; margin-left: 8px; font-size: 15px;" title="Hapus Canvas" onclick="clearCanvas('canvasRegisterSign')">
+        <i class="fa-solid fa-trash-can"></i>
+      </div>
+    </div>
+    <!-- Canvas -->
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 0 0 10px 10px; margin-bottom: 20px; overflow: hidden; position: relative;">
+      <canvas id="canvasRegisterSign" class="sign-canvas" width="400" height="150"
+        style="width:100%; height: 150px; border:none; margin:0; display: block;"></canvas>
+    </div>
+
+    <!-- PIN Section -->
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 20px;">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+        <i class="fa-solid fa-lock" style="color: var(--secondary); font-size: 14px;"></i>
+        <span style="font-weight: 600; font-size: 13px;">PIN Keamanan 6 Digit</span>
+      </div>
+      <p style="font-size: 12px; color: #94a3b8; margin: 0 0 14px 0;">PIN digunakan untuk memverifikasi identitas Anda saat menandatangani dokumen.</p>
+      <div style="display: flex; gap: 12px; justify-content: center;">
+        <div style="text-align: center;">
+          <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 6px; font-weight: 500;">PIN</label>
+          <input type="password" id="regPin" placeholder="······" maxlength="6"
+            style="width: 120px; text-align:center; font-size: 22px; letter-spacing: 8px; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; background: white; outline: none; transition: border-color 0.2s; font-weight: 600;"
+            onfocus="this.style.borderColor='var(--secondary)'" onblur="this.style.borderColor='#e2e8f0'">
+        </div>
+        <div style="text-align: center;">
+          <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 6px; font-weight: 500;">ULANGI PIN</label>
+          <input type="password" id="regPinConfirm" placeholder="······" maxlength="6"
+            style="width: 120px; text-align:center; font-size: 22px; letter-spacing: 8px; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; background: white; outline: none; transition: border-color 0.2s; font-weight: 600;"
+            onfocus="this.style.borderColor='var(--secondary)'" onblur="this.style.borderColor='#e2e8f0'">
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+      <button class="btn btn-outline" onclick="closeModal('modalRegisterSignature')">Batal</button>
+      <button class="btn btn-primary" onclick="saveRegisteredSignature()"><i class="fa-solid fa-floppy-disk"></i> Simpan & Buat PIN</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CROP FOTO 1:1 -->
+<div id="cropModal" class="modal-overlay hidden">
+  <div class="modal-content" style="max-width: 500px;">
+    <h3 style="margin-bottom: 15px;">Potong Foto (1:1)</h3>
+    <div class="crop-container">
+      <canvas id="cropCanvas"></canvas>
+    </div>
+    <input type="text" id="cropCaption" class="form-group" placeholder="Keterangan foto (opsional)..." style="width: 100%; margin-bottom: 15px;">
+    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+      <button class="btn btn-outline" onclick="cancelCrop()">Batal</button>
+      <button class="btn btn-primary" onclick="confirmCrop()"><i class="fa-solid fa-check"></i> Simpan Foto</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: SIGNATURE CROP & ZOOM -->
+<div id="sigCropModal" class="modal-overlay hidden">
+  <div class="modal-content" style="max-width: 550px;">
+    <h3 style="margin-bottom: 10px;">Atur Tanda Tangan</h3>
+    <p class="sig-crop-info">Geser kotak untuk memindai area. Tarik sudut untuk ubah ukuran. Scroll mouse atau gunakan slider untuk zoom.</p>
+    <div class="sig-crop-wrap">
+      <canvas id="sigCropCanvas" width="500" height="300"></canvas>
+    </div>
+    <div class="sig-zoom-controls">
+      <button class="zoom-btn" onclick="sigCropZoomStep(-0.1)" title="Zoom Out">−</button>
+      <input type="range" id="sigZoomSlider" min="20" max="400" value="100" oninput="sigCropZoom(parseInt(this.value)/100)">
+      <button class="zoom-btn" onclick="sigCropZoomStep(0.1)" title="Zoom In">+</button>
+      <span class="zoom-label" id="sigZoomLabel">100%</span>
+    </div>
+    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+      <button class="btn btn-outline" onclick="sigCropCancel()">Batal</button>
+      <button class="btn btn-primary" onclick="sigCropSave()"><i class="fa-solid fa-check"></i> Gunakan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: PREVIEW & SIGN -->
+<div id="modalPreview" class="modal-overlay hidden">
+  <div class="modal-content modal-large">
+    <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+      <h3>Preview Laporan</h3>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-outline" onclick="exportPreviewToPDF()" style="font-size: 12px;"><i class="fa-solid fa-file-pdf" style="color:#f43f5e;"></i> Export to PDF</button>
+        <button class="btn btn-outline" onclick="closeModal('modalPreview')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    </div>
+
+    <div class="preview-wrapper">
+      <div id="previewArea">
+        <div
+          style="border: 2px solid black; display: flex; flex-direction: column; flex-grow: 1; box-sizing: border-box;">
+
+          <!-- HEADER ROW 1 -->
+          <div style="display: flex; border-bottom: 2px solid black;">
+            <div
+              style="width: 58%; border-right: 2px solid black; padding: 10px; display: flex; align-items: center; justify-content: center; text-align: center; font-weight: bold; font-size: 14px;">
+              PT INDOFOOD CBP SUKSES MAKMUR Tbk<br>
+              DIVISI NOODLE - PABRIK CIBITUNG
+            </div>
+            <div style="width: 42%; padding: 10px; font-weight: bold; font-size: 13px;">
+              <table style="width: 100%; border: none; font-weight: bold;">
+                <tr>
+                  <td style="border:none; padding: 2px 0; width: 120px;">Kode Form</td>
+                  <td style="border:none; padding: 2px 0;">: MGT - 003</td>
+                </tr>
+                <tr>
+                  <td style="border:none; padding: 2px 0;">No. Terbitan</td>
+                  <td style="border:none; padding: 2px 0;">: 2.0</td>
+                </tr>
+                <tr>
+                  <td style="border:none; padding: 2px 0;">Tgl. Efektif</td>
+                  <td style="border:none; padding: 2px 0;">: 02 Oktober 2023</td>
+                </tr>
+                <tr>
+                  <td style="border:none; padding: 2px 0;">Halaman</td>
+                  <td style="border:none; padding: 2px 0;">: 1 / 1</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+
+          <!-- HEADER ROW 2: Title and Checkboxes -->
+          <div style="display: flex; border-bottom: 2px solid black;">
+            <div
+              style="width: 45%; padding: 15px; font-weight: bold; font-size: 16px; display: flex; align-items: center;">
+              PENGAMATAN INTERNAL AUDIT
+            </div>
+            <div style="width: 55%; padding: 10px;" id="previewCheckboxes">
+            </div>
+          </div>
+
+          <!-- HEADER ROW 3: Dept and Date -->
+          <div style="padding: 10px 15px; border-bottom: 2px solid black; font-weight: bold;">
+            <table style="width: 100%; border: none; font-weight: bold; font-size: 14px;">
+              <tr>
+                <td style="border:none; width: 120px; padding: 2px 0;">Departemen</td>
+                <td style="border:none; padding: 2px 0;">: <span id="prevDept"></span></td>
+              </tr>
+              <tr>
+                <td style="border:none; padding: 2px 0;">Tanggal</td>
+                <td style="border:none; padding: 2px 0;">: <span id="prevDate"></span></td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- TABLE -->
+          <div style="flex-grow: 1; display: flex; flex-direction: column;">
+            <table style="width: 100%; border-collapse: collapse; height: 100%; flex-grow: 1;">
+              <colgroup>
+                <col style="width: 5%; border-right: 2px solid black;">
+                <col style="width: 65%; border-right: 2px solid black;">
+                <col style="width: 15%; border-right: 2px solid black;">
+                <col style="width: 15%;">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th style="border-bottom: 2px solid black; padding: 10px;">NO.</th>
+                  <th style="border-bottom: 2px solid black; padding: 10px;">HASIL PENGAMATAN</th>
+                  <th style="border-bottom: 2px solid black; padding: 10px;">ELEMEN /<br>KLAUSUL</th>
+                  <th style="border-bottom: 2px solid black; padding: 10px;">KATEGORI</th>
+                </tr>
+              </thead>
+              <tbody id="previewTableBody">
+              </tbody>
+            </table>
+          </div>
+
+          <!-- FOOTER: Signatures -->
+          <div style="display: flex; border-top: 2px solid black; padding: 15px;">
+            <div style="flex: 1; text-align: center; display: flex; flex-direction: column; align-items: center;">
+              <div style="font-weight: bold; margin-bottom: 10px;">Auditor</div>
+              <div id="auditorSavedSignWrapper"
+                style="width: 150px; height: 80px; margin: 10px 0; display: flex; align-items:center; justify-content:center;">
+                <img id="auditorSavedSignImg" style="width: 100%; height: 100%; object-fit: contain; transform: scale(1.2);" src="">
+              </div>
+              <div style="border-top: 1px solid black; margin-top: 5px; width: 150px; font-weight: bold; padding-top: 5px;"><span
+                  id="prevAuditorName"></span></div>
+            </div>
+            <div style="flex: 1; text-align: center; display: flex; flex-direction: column; align-items: center;">
+              <div style="font-weight: bold; margin-bottom: 10px;">Auditee</div>
+              <div id="auditeeSavedSignWrapper"
+                style="width: 150px; height: 80px; margin: 10px 0; display: flex; align-items:center; justify-content:center;">
+                <img id="auditeeSavedSignImg" style="width: 100%; height: 100%; object-fit: contain; transform: scale(1.2);" src="">
+              </div>
+              <div style="border-top: 1px solid black; margin-top: 5px; width: 150px; font-weight: bold; padding-top: 5px;"><span
+                  id="prevAuditeeName"></span></div>
+            </div>
+            <div style="flex: 1; font-size: 12px; font-weight: bold; padding-left: 20px;">
+              <div style="margin-bottom: 5px;">Kategori :</div>
+              <table style="border: none; font-style: italic;">
+                <tr>
+                  <td style="border:none; padding:2px;">C</td>
+                  <td style="border:none; padding:2px;">= Conformance</td>
+                </tr>
+                <tr>
+                  <td style="border:none; padding:2px;">Minor</td>
+                  <td style="border:none; padding:2px;">= Temuan Minor</td>
+                </tr>
+                <tr>
+                  <td style="border:none; padding:2px;">Major</td>
+                  <td style="border:none; padding:2px;">= Temuan Major</td>
+                </tr>
+                <tr>
+                  <td style="border:none; padding:2px;">Kritis</td>
+                  <td style="border:none; padding:2px;">= Temuan Kritis</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+
+          <!-- HASH INTEGRITAS (UU ITE) -->
+          <div
+            style="font-size: 8px; color: #888; text-align: left; padding: 5px 15px; border-top: 1px dashed #ccc; background: #fff;">
+            Hash Integritas (SHA-256): <span id="prevHash" style="font-family: monospace;">Menunggu Submit...</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- LAMPIRAN SECTION -->
+      <div id="lampiranArea" class="hidden">
+        <div id="lampiranPage" style="background: white; padding: 20px; color: black; font-family: 'Times New Roman', Times, serif; font-size: 13px; width: 794px; min-height: 1123px; box-sizing: border-box; margin: 20px auto 0; border: 2px solid black;">
+          <h3 style="text-align: center; font-weight: bold; margin-bottom: 15px; font-size: 16px; text-decoration: underline; padding-top: 10px;">LAMPIRAN</h3>
+          <div id="lampiranGrid" class="lampiran-grid"></div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+        <button class="btn btn-outline" onclick="closeModal('modalPreview')">Tutup</button>
+        <button class="btn btn-primary" id="btnSimpanPreview" onclick="saveData('Draft')"><i class="fa-solid fa-save"></i> Simpan Data</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: GANTI PASSWORD -->
+<div id="modalChangePassword" class="modal-overlay hidden">
+  <div class="modal-content" style="max-width: 420px;">
+    <div style="text-align: center; margin-bottom: 20px;">
+      <div style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #f43f5e, #e11d48); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+        <i class="fa-solid fa-lock" style="color: white; font-size: 24px;"></i>
+      </div>
+      <h3 style="margin: 0 0 4px 0; font-size: 18px;">Ganti Password</h3>
+      <p style="margin: 0; font-size: 13px; color: var(--text-light);">Masukkan password lama dan password baru</p>
+    </div>
+
+    <div style="margin-bottom: 16px;">
+      <label style="font-size: 12px; font-weight: 600; color: var(--text-dark); display: block; margin-bottom: 6px;">Password Lama</label>
+      <input type="password" id="cpOldPassword" placeholder="Masukkan password lama"
+        style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; box-sizing: border-box; transition: border-color 0.2s;"
+        onfocus="this.style.borderColor='var(--secondary)'" onblur="this.style.borderColor='#e2e8f0'">
+    </div>
+
+    <div style="margin-bottom: 16px;">
+      <label style="font-size: 12px; font-weight: 600; color: var(--text-dark); display: block; margin-bottom: 6px;">Password Baru</label>
+      <input type="password" id="cpNewPassword" placeholder="Masukkan password baru"
+        style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; box-sizing: border-box; transition: border-color 0.2s;"
+        onfocus="this.style.borderColor='var(--secondary)'" onblur="this.style.borderColor='#e2e8f0'" oninput="validatePasswordStrength(this.value)">
+      <div id="cpStrengthIndicator" style="margin-top: 6px; font-size: 11px; display: none;">
+        <div style="display: flex; gap: 4px; margin-bottom: 4px;">
+          <div id="cpBar1" style="flex:1; height:3px; border-radius:2px; background:#e2e8f0; transition: background 0.2s;"></div>
+          <div id="cpBar2" style="flex:1; height:3px; border-radius:2px; background:#e2e8f0; transition: background 0.2s;"></div>
+          <div id="cpBar3" style="flex:1; height:3px; border-radius:2px; background:#e2e8f0; transition: background 0.2s;"></div>
+        </div>
+        <span id="cpStrengthText"></span>
+      </div>
+      <div id="cpRules" style="margin-top: 8px; font-size: 11px; color: #94a3b8; line-height: 1.8;">
+        <div id="cpRuleLen"><i class="fa-regular fa-circle"></i> 8-20 karakter</div>
+        <div id="cpRuleUpper"><i class="fa-regular fa-circle"></i> minimal 1 huruf besar (A-Z)</div>
+        <div id="cpRuleLower"><i class="fa-regular fa-circle"></i> minimal 1 huruf kecil (a-z)</div>
+        <div id="cpRuleSpecial"><i class="fa-regular fa-circle"></i> minimal 1 karakter unik (!@#$%^&*)</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+      <label style="font-size: 12px; font-weight: 600; color: var(--text-dark); display: block; margin-bottom: 6px;">Ulangi Password Baru</label>
+      <input type="password" id="cpConfirmPassword" placeholder="Ulangi password baru"
+        style="width: 100%; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; box-sizing: border-box; transition: border-color 0.2s;"
+        onfocus="this.style.borderColor='var(--secondary)'" onblur="this.style.borderColor='#e2e8f0'" oninput="checkPasswordMatch()">
+      <div id="cpMatchMsg" style="margin-top: 4px; font-size: 11px; display: none;"></div>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+      <button class="btn btn-outline" onclick="closeModal('modalChangePassword')">Batal</button>
+      <button class="btn btn-primary" onclick="submitChangePassword()"><i class="fa-solid fa-check"></i> Simpan Password</button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,135 @@
+<div class="container">
+
+  <!-- 1. LOGIN STATE -->
+  <div id="stateLogin" class="login-wrapper">
+    <div class="login-card">
+      <div class="login-icon">
+        <i class="fa-solid fa-shield-halved"></i>
+      </div>
+      <h2>Confidential</h2>
+      <p class="login-subtitle">Sistem Audit Internal &mdash; Masuk untuk melanjutkan</p>
+      <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label><i class="fa-solid fa-fingerprint" style="width:16px; color:var(--secondary);"></i> NIK</label>
+          <input type="text" id="loginNik" placeholder="Masukkan NIK Anda" required>
+        </div>
+        <div class="form-group">
+          <label><i class="fa-solid fa-lock" style="width:16px; color:var(--secondary);"></i> Password</label>
+          <input type="password" id="loginPassword" placeholder="Masukkan password" required>
+        </div>
+        <button type="submit" class="btn btn-primary" id="btnLogin">
+          <i class="fa-solid fa-arrow-right-to-bracket"></i> Masuk
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. MAIN MENU STATE -->
+  <div id="stateMenu" class="hidden">
+    <h2 style="margin-bottom: 22px; font-weight: 700; letter-spacing: -0.02em;">Pilih Kategori Audit</h2>
+    <div class="menu-grid">
+      <div class="glass-card menu-card" onclick="openCategory('Halal')">
+        <div class="menu-icon halal"><i class="fa-solid fa-leaf"></i></div>
+        <h3>Halal</h3>
+      </div>
+      <div class="glass-card menu-card" onclick="openCategory('FSSC')">
+        <div class="menu-icon fssc"><i class="fa-solid fa-shield-halved"></i></div>
+        <h3>FSSC</h3>
+      </div>
+      <div class="glass-card menu-card" onclick="openCategory('PRP')">
+        <div class="menu-icon prp"><i class="fa-solid fa-industry"></i></div>
+        <h3>PRP</h3>
+      </div>
+      <div class="glass-card menu-card" onclick="openCategory('PMR')">
+        <div class="menu-icon pmr"><i class="fa-solid fa-wrench"></i></div>
+        <h3>PMR</h3>
+      </div>
+      <div class="glass-card menu-card" onclick="openCategory('SMK3')">
+        <div class="menu-icon smk3"><i class="fa-solid fa-helmet-safety"></i></div>
+        <h3>SMK3</h3>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. LIST DATA PENGAMATAN STATE -->
+  <div id="stateList" class="hidden">
+    <div class="header-action">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <button class="btn btn-outline" onclick="changeState('stateMenu')"><i class="fa-solid fa-arrow-left"></i>
+          Kembali</button>
+        <h2 style="font-weight: 700; letter-spacing: -0.02em;" id="listTitle">Data Pengamatan</h2>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button id="btnExportExcelList" class="btn btn-outline" style="display: none;" onclick="exportListExcel()"><i
+            class="fa-solid fa-file-excel" style="color:#10b981;"></i> Export Excel</button>
+        <button class="btn btn-primary" onclick="showNewDataModal()"><i class="fa-solid fa-plus"></i> Tambah
+          Data</button>
+      </div>
+    </div>
+
+    <div id="advancedSearch" class="glass-card" style="padding: 14px 16px; margin-bottom: 18px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+      <div style="position: relative; flex: 1; min-width: 180px;">
+        <i class="fa-solid fa-user" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 13px;"></i>
+        <input type="text" id="searchAuditee" autocomplete="off" placeholder="Cari Auditee..." style="width:100%; padding: 10px 12px 10px 36px; border: 1.5px solid rgba(0,0,0,0.08); border-radius: var(--radius-sm); font-size: 13px; background: rgba(255,255,255,0.7); outline: none;">
+      </div>
+      <div style="position: relative; flex: 1; min-width: 180px;">
+        <i class="fa-solid fa-user-tie" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 13px;"></i>
+        <input type="text" id="searchAuditor" autocomplete="off" placeholder="Cari Auditor..." style="width:100%; padding: 10px 12px 10px 36px; border: 1.5px solid rgba(0,0,0,0.08); border-radius: var(--radius-sm); font-size: 13px; background: rgba(255,255,255,0.7); outline: none;">
+      </div>
+      <div style="position: relative; flex: 1; min-width: 150px;">
+        <i class="fa-solid fa-building" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 13px;"></i>
+        <input type="text" id="searchDept" autocomplete="new-password" placeholder="Cari Departemen..." style="width:100%; padding: 10px 12px 10px 36px; border: 1.5px solid rgba(0,0,0,0.08); border-radius: var(--radius-sm); font-size: 13px; background: rgba(255,255,255,0.7); outline: none;">
+      </div>
+      <div style="position: relative; flex: 1; min-width: 140px;">
+        <i class="fa-solid fa-filter" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 13px;"></i>
+        <select id="searchStatus" style="width:100%; padding: 10px 12px 10px 36px; border: 1.5px solid rgba(0,0,0,0.08); border-radius: var(--radius-sm); font-size: 13px; background: rgba(255,255,255,0.7); outline: none; appearance: none;">
+          <option value="">Semua Status</option>
+          <option value="Draft">Draft</option>
+          <option value="Submitted">Submitted</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" style="padding: 10px 18px;" onclick="renderList()"><i class="fa-solid fa-magnifying-glass"></i> Cari</button>
+    </div>
+
+    <div id="listContainer">
+      <!-- Card Data akan dirender di sini via JS -->
+    </div>
+  </div>
+
+  <!-- 4. FORM CHECKLIST STATE -->
+  <div id="stateForm" class="hidden">
+    <div class="header-action">
+      <button class="btn btn-outline" onclick="changeState('stateList')"><i class="fa-solid fa-arrow-left"></i>
+        Batal</button>
+      <h2 style="font-weight: 700; letter-spacing: -0.02em;">Form Checklist: <span id="formCategoryTitle" style="color: var(--secondary);"></span></h2>
+      <div style="font-weight: 600; color: var(--text-light); font-size: 13px;">Auditee: <span id="formAuditeeLabel" style="color: var(--text-dark);"></span></div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="checklist-table">
+        <thead>
+          <tr>
+            <th width="5%">No</th>
+            <th width="35%">Parameter / dokumen</th>
+            <th width="8%">Kriteria SJPH no.</th>
+            <th width="12%">Kesesuaian</th>
+            <th width="12%">Kategori</th>
+            <th width="15%">Keterangan</th>
+            <th width="13%">Foto</th>
+          </tr>
+        </thead>
+        <tbody id="checklistBody">
+          <!-- Baris pertanyaan dirender di sini -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="form-footer">
+      <button class="btn btn-outline" onclick="saveData('Draft')"><i class="fa-solid fa-floppy-disk"></i> Simpan
+        Sementara</button>
+      <button class="btn btn-primary" onclick="showPreview()"><i class="fa-solid fa-file-signature"></i> Review &
+        Submit</button>
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,29 @@
+<nav class="navbar hidden" id="navbar">
+  <div style="font-weight: 700; font-size: 1.15rem; letter-spacing: -0.02em; display: flex; align-items: center; gap: 10px;">
+    <div style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--secondary), #818cf8); display: flex; align-items: center; justify-content: center;">
+      <i class="fa-solid fa-shield-halved" style="color: white; font-size: 14px;"></i>
+    </div>
+    Confidential
+  </div>
+  <div class="user-dropdown" id="userDropdown">
+    <button class="user-avatar-btn" id="userAvatarBtn" onclick="toggleUserDropdown(event)">
+      <span id="userAvatarInitial">U</span>
+    </button>
+    <div class="user-dropdown-menu" id="userDropdownMenu">
+      <div class="dropdown-user-info">
+        <div class="user-name" id="dropdownUserName">-</div>
+        <div class="user-nik" id="dropdownUserNik">NIK: -</div>
+      </div>
+      <button class="dropdown-item" onclick="closeUserDropdown(); setTimeout(openRegisterSignature, 150);">
+        <i class="fa-solid fa-pen-nib"></i> Ganti Tanda Tangan
+      </button>
+      <button class="dropdown-item" onclick="closeUserDropdown(); setTimeout(openChangePassword, 150);">
+        <i class="fa-solid fa-lock"></i> Ganti Password
+      </button>
+      <div class="dropdown-divider"></div>
+      <button class="dropdown-item danger" onclick="closeUserDropdown(); setTimeout(logout, 150);">
+        <i class="fa-solid fa-right-from-bracket"></i> Keluar
+      </button>
+    </div>
+  </div>
+</nav>

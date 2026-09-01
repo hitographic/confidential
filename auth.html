@@ -1,0 +1,255 @@
+function checkSignatureOnLogin() {
+  if (!currentUser.nik || currentUser.nik === 'guest') return;
+  fetch(GAS_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'getSignatureInfo', nik: currentUser.nik })
+  }).then(r => r.json()).then(res => {
+    if (res.success && res.exists) {
+      Swal.fire({
+        title: 'Tanda Tangan Terdaftar',
+        html: `<p style="font-size:14px; margin-bottom:8px;">Anda sudah memiliki tanda tangan digital.</p>
+               <div style="text-align:left; font-size:12px; color:#64748b; background:#f8fafc; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
+                 <div><i class="fa-regular fa-calendar"></i> Dibuat: <b>${res.createdAt || '-'}</b></div>
+                 <div><i class="fa-solid fa-rotate"></i> Diperbarui: <b>${res.updatedAt || '-'}</b></div>
+               </div>`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: '<i class="fa-solid fa-check"></i> Gunakan yang Sudah Ada',
+        cancelButtonText: '<i class="fa-solid fa-pen-nib"></i> Buat TTD Baru',
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#6366f1',
+        reverseButtons: true
+      }).then(result => {
+        if (result.isConfirmed) {
+          Swal.fire({ icon: 'success', title: 'Menggunakan TTD yang sudah ada', timer: 1200, showConfirmButton: false });
+        } else {
+          openRegisterSignature();
+        }
+      });
+    } else {
+      openRegisterSignature();
+    }
+  }).catch(() => {
+    openRegisterSignature();
+  });
+}
+
+function openChangePassword() {
+  document.getElementById('cpOldPassword').value = '';
+  document.getElementById('cpNewPassword').value = '';
+  document.getElementById('cpConfirmPassword').value = '';
+  document.getElementById('cpStrengthIndicator').style.display = 'none';
+  document.getElementById('cpRules').querySelectorAll('div').forEach(d => {
+    d.innerHTML = d.innerHTML.replace(/fa-circle-check/g, 'fa-regular fa-circle').replace(/fa-regular fa-circle/g, 'fa-regular fa-circle');
+    d.style.color = '#94a3b8';
+  });
+  document.getElementById('cpMatchMsg').style.display = 'none';
+  showModal('modalChangePassword');
+}
+
+function validatePasswordStrength(pw) {
+  const indicator = document.getElementById('cpStrengthIndicator');
+  indicator.style.display = 'block';
+  const len = pw.length >= 8 && pw.length <= 20;
+  const upper = /[A-Z]/.test(pw);
+  const lower = /[a-z]/.test(pw);
+  const special = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(pw);
+  const score = [len, upper, lower, special].filter(Boolean).length;
+
+  const bars = [document.getElementById('cpBar1'), document.getElementById('cpBar2'), document.getElementById('cpBar3')];
+  const text = document.getElementById('cpStrengthText');
+  const colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981'];
+  const labels = ['Lemah', 'Sedang', 'Kuat', 'Sangat Kuat'];
+
+  bars.forEach((b, i) => { b.style.background = i < score ? colors[score - 1] : '#e2e8f0'; });
+  text.textContent = pw.length > 0 ? labels[score - 1] || '' : '';
+  text.style.color = colors[score - 1] || '#94a3b8';
+
+  const setRule = (id, ok) => {
+    const el = document.getElementById(id);
+    el.innerHTML = ok
+      ? '<i class="fa-solid fa-circle-check" style="color:#10b981;"></i> ' + el.textContent.replace(/^[^\s]+\s/, '')
+      : '<i class="fa-regular fa-circle"></i> ' + el.textContent.replace(/^[^\s]+\s/, '');
+    el.style.color = ok ? '#10b981' : '#94a3b8';
+  };
+  setRule('cpRuleLen', len);
+  setRule('cpRuleUpper', upper);
+  setRule('cpRuleLower', lower);
+  setRule('cpRuleSpecial', special);
+
+  // Check confirm match
+  const confirm = document.getElementById('cpConfirmPassword').value;
+  const matchMsg = document.getElementById('cpMatchMsg');
+  if (confirm.length > 0) {
+    matchMsg.style.display = 'block';
+    if (confirm === pw) {
+      matchMsg.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#10b981;"></i> Cocok';
+      matchMsg.style.color = '#10b981';
+    } else {
+      matchMsg.innerHTML = '<i class="fa-solid fa-circle-xmark" style="color:#ef4444;"></i> Tidak cocok';
+      matchMsg.style.color = '#ef4444';
+    }
+  }
+}
+
+function checkPasswordMatch() {
+  const newPw = document.getElementById('cpNewPassword').value;
+  const confirmPw = document.getElementById('cpConfirmPassword').value;
+  const matchMsg = document.getElementById('cpMatchMsg');
+  if (confirmPw.length > 0) {
+    matchMsg.style.display = 'block';
+    if (confirmPw === newPw) {
+      matchMsg.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#10b981;"></i> Cocok';
+      matchMsg.style.color = '#10b981';
+    } else {
+      matchMsg.innerHTML = '<i class="fa-solid fa-circle-xmark" style="color:#ef4444;"></i> Tidak cocok';
+      matchMsg.style.color = '#ef4444';
+    }
+  } else {
+    matchMsg.style.display = 'none';
+  }
+}
+
+function submitChangePassword() {
+  const oldPw = document.getElementById('cpOldPassword').value.trim();
+  const newPw = document.getElementById('cpNewPassword').value.trim();
+  const confirmPw = document.getElementById('cpConfirmPassword').value.trim();
+
+  if (!oldPw) return Swal.fire('Peringatan', 'Masukkan password lama', 'warning');
+  if (!newPw) return Swal.fire('Peringatan', 'Masukkan password baru', 'warning');
+
+  // Validate strength
+  const len = newPw.length >= 8 && newPw.length <= 20;
+  const upper = /[A-Z]/.test(newPw);
+  const lower = /[a-z]/.test(newPw);
+  const special = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(newPw);
+  if (!len || !upper || !lower || !special) {
+    return Swal.fire('Password Lemah', 'Password harus 8-20 karakter, huruf besar, huruf kecil, dan karakter unik (!@#$%^&*)', 'warning');
+  }
+  if (newPw !== confirmPw) return Swal.fire('Peringatan', 'Konfirmasi password tidak cocok', 'warning');
+  if (newPw === oldPw) return Swal.fire('Peringatan', 'Password baru harus berbeda dari password lama', 'warning');
+
+  Swal.fire({ title: 'Mengubah password...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+  fetch(GAS_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'changePassword', nik: currentUser.nik, oldPassword: oldPw, newPassword: newPw })
+  }).then(r => r.json()).then(res => {
+    if (res.success) {
+      closeModal('modalChangePassword');
+      Swal.fire({ icon: 'success', title: 'Password berhasil diubah!', timer: 1500, showConfirmButton: false });
+    } else {
+      Swal.fire('Gagal', res.message, 'error');
+    }
+  }).catch(() => {
+    Swal.fire('Error', 'Gagal terhubung ke server', 'error');
+  });
+}
+
+function openRegisterSignature() {
+  const statusCard = document.getElementById('sigStatusCard');
+  statusCard.style.display = 'none';
+  showModal('modalRegisterSignature');
+  
+  if (currentUser.nik && currentUser.nik !== 'guest') {
+    fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'getSignatureInfo', nik: currentUser.nik })
+    }).then(r => r.json()).then(res => {
+      if (res.success && res.exists) {
+        statusCard.style.display = 'block';
+        document.getElementById('sigCreatedAt').textContent = res.createdAt || '-';
+        document.getElementById('sigUpdatedAt').textContent = res.updatedAt || '-';
+      }
+    }).catch(() => {});
+  }
+}
+
+function handleLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnLogin');
+  const nik = document.getElementById('loginNik').value;
+  const pass = document.getElementById('loginPassword').value;
+
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Proses...';
+  btn.disabled = true;
+
+  fetch(GAS_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'login', nik, password: pass })
+  })
+    .then(res => res.json())
+    .then(res => {
+      if (res.success) {
+        currentUser = { nik, nama: res.nama, role: res.role };
+        sessionStorage.setItem('matrika_user', JSON.stringify(currentUser));
+        updateNavbarUser();
+        
+        if (currentUser.role && currentUser.role.toLowerCase() === 'admin') {
+          document.getElementById('btnExportExcelList').style.display = 'inline-flex';
+        } else {
+          document.getElementById('btnExportExcelList').style.display = 'none';
+        }
+
+        changeState('stateMenu');
+        checkSignatureOnLogin();
+      } else {
+        Swal.fire('Gagal', res.message, 'error');
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      Swal.fire('Info', 'Mode Demo (Backend belum diperbarui). Login sebagai Guest.', 'info');
+      currentUser = { nik: 'guest', nama: 'Auditor Demo' };
+      sessionStorage.setItem('matrika_user', JSON.stringify(currentUser));
+      updateNavbarUser();
+      changeState('stateMenu');
+      if (!localStorage.getItem('signature_' + currentUser.nik)) openRegisterSignature();
+    })
+    .finally(() => {
+      btn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Masuk';
+      btn.disabled = false;
+    });
+}
+
+function logout() {
+  sessionStorage.removeItem('matrika_user');
+  sessionStorage.removeItem('matrika_state');
+  currentUser = { nik: '', nama: '' };
+  document.getElementById('loginForm').reset();
+  window.location.hash = '#login';
+  changeState('stateLogin', false);
+}
+
+function saveRegisteredSignature() {
+  const canvas = document.getElementById('canvasRegisterSign');
+  const dataUrl = getCroppedDataURL(canvas);
+  const pin = document.getElementById('regPin').value;
+  const pinConfirm = document.getElementById('regPinConfirm').value;
+
+  if (!pin || pin.length !== 6) { Swal.fire('Error', 'PIN harus 6 digit angka!', 'error'); return; }
+  if (pin !== pinConfirm) { Swal.fire('Error', 'Konfirmasi PIN tidak cocok!', 'error'); return; }
+
+  Swal.fire({ title: 'Menyimpan TTE...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+  fetch(GAS_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'registerSignature', nik: currentUser.nik, signatureData: dataUrl, pin: pin })
+  }).then(r => r.json()).then(res => {
+    if (res.success) {
+      localStorage.setItem('signature_' + currentUser.nik, dataUrl);
+      closeModal('modalRegisterSignature');
+      Swal.fire('Berhasil', res.message, 'success');
+    } else {
+      Swal.fire('Gagal', res.message, 'error');
+    }
+  }).catch(e => {
+    Swal.fire('Info', 'Backend belum connect, tersimpan lokal (demo).', 'info');
+    localStorage.setItem('signature_' + currentUser.nik, dataUrl);
+    closeModal('modalRegisterSignature');
+  });
+}
+
+function warnAuditeeSign() {
+  Swal.fire('Peringatan', 'Auditor harus menandatangani laporan terlebih dahulu sebelum Auditee dapat tanda tangan.', 'warning');
+}

@@ -1,0 +1,7 @@
+function openCategory(kategori) {
+  currentCategory = kategori;
+  saveSessionState();
+  document.getElementById('listTitle').innerText = `Data Pengamatan - ${kategori}`;
+  changeState('stateList');
+  loadListData();
+}
