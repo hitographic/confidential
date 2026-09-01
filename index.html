@@ -3541,42 +3541,49 @@
           if (!res.success) { Swal.fire('Gagal', res.message, 'error'); return; }
           var d = res.data;
 
-          // Collect all image URLs
-          var allUrls = [];
-          if (d.auditorSignature) allUrls.push(d.auditorSignature);
-          if (d.auditeeSignature) allUrls.push(d.auditeeSignature);
-          (d.lampiran || []).forEach(function(item) { if (item.url) allUrls.push(item.url); });
-          allUrls = allUrls.filter(function(u, i, a) { return a.indexOf(u) === i; });
-
-          // Separate base64 data URLs (use directly) vs Drive URLs (need fetch)
+          // Collect all Drive file IDs to fetch
           var imageMap = {};
           var driveFileIds = [];
-          var driveIdToUrl = {};
-          allUrls.forEach(function(url) {
-            if (url.startsWith('data:image')) {
-              imageMap[url] = url;
-            } else {
-              var m = url.match(/id=([^&]+)/);
-              if (m) {
-                var fid = m[1];
-                imageMap[url] = ''; // placeholder
-                driveFileIds.push(fid);
-                driveIdToUrl[fid] = url;
-              }
+
+          function extractFileId(url) {
+            if (!url) return null;
+            if (url.startsWith('data:image')) { imageMap[url] = url; return null; }
+            var m = url.match(/id=([^&]+)/);
+            return m ? m[1] : null;
+          }
+
+          if (d.auditorSignature) {
+            var fid = extractFileId(d.auditorSignature);
+            if (fid) { driveFileIds.push(fid); imageMap[d.auditorSignature] = { fid: fid }; }
+          }
+          if (d.auditeeSignature) {
+            var fid2 = extractFileId(d.auditeeSignature);
+            if (fid2) { driveFileIds.push(fid2); imageMap[d.auditeeSignature] = { fid: fid2 }; }
+          }
+          (d.lampiran || []).forEach(function(item) {
+            if (item.fileId) {
+              driveFileIds.push(item.fileId);
+              if (item.url) imageMap[item.url] = { fid: item.fileId };
+            } else if (item.url) {
+              var fid3 = extractFileId(item.url);
+              if (fid3) { driveFileIds.push(fid3); imageMap[item.url] = { fid: fid3 }; }
             }
           });
 
-          // Fetch Drive images as base64 via GAS proxy
+          // Fetch all Drive images in one batch
           var chain = Promise.resolve();
           if (driveFileIds.length > 0) {
+            var uniqueIds = driveFileIds.filter(function(id, i, a) { return a.indexOf(id) === i; });
             chain = chain.then(function() {
-              return fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'fetchImages', fileIds: driveFileIds }) })
+              return fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'fetchImages', fileIds: uniqueIds }) })
                 .then(function(r) { return r.json(); })
                 .then(function(r) {
                   if (r.success && r.images) {
-                    Object.keys(r.images).forEach(function(fid) {
-                      var origUrl = driveIdToUrl[fid];
-                      if (origUrl && r.images[fid]) imageMap[origUrl] = r.images[fid];
+                    Object.keys(imageMap).forEach(function(key) {
+                      var entry = imageMap[key];
+                      if (entry && entry.fid && r.images[entry.fid]) {
+                        imageMap[key] = r.images[entry.fid];
+                      }
                     });
                   }
                 });
@@ -3588,7 +3595,7 @@
 
             var pdf = new jspdf.jsPDF('p', 'mm', 'a4');
             var pageW = 210, pageH = 297;
-            var margin = 0.19 * 25.4;
+            var margin = 5;
             var contentW = pageW - margin * 2;
             var y = margin;
 
@@ -3599,98 +3606,103 @@
             // === PAGE 1 ===
             // Outer page border
             pdf.setDrawColor(0);
-            pdf.setLineWidth(0.3);
+            pdf.setLineWidth(0.5);
             pdf.rect(margin, margin, contentW, pageH - margin * 2);
 
-            // Header Row 1: Company + Form Info
-            var leftBoxW = contentW * 0.58;
-            var headerH = 18;
+            // --- Header Row 1: Company + Form Info ---
+            var leftBoxW = contentW * 0.57;
+            var headerH = 20;
+            pdf.setLineWidth(0.3);
             pdf.rect(margin, y, leftBoxW, headerH);
             pdf.rect(margin + leftBoxW, y, contentW - leftBoxW, headerH);
 
             pdf.setFont('times', 'bold');
             pdf.setFontSize(12);
-            pdf.text('PT INDOFOOD CBP SUKSES MAKMUR Tbk', margin + leftBoxW / 2, y + 7, { align: 'center' });
+            pdf.text('PT INDOFOOD CBP SUKSES MAKMUR Tbk', margin + leftBoxW / 2, y + 8, { align: 'center' });
             pdf.setFontSize(11);
-            pdf.text('DIVISI NOODLE - PABRIK CIBITUNG', margin + leftBoxW / 2, y + 13, { align: 'center' });
+            pdf.text('DIVISI NOODLE - PABRIK CIBITUNG', margin + leftBoxW / 2, y + 14, { align: 'center' });
 
             pdf.setFont('times', 'normal');
             pdf.setFontSize(10);
             var rx = margin + leftBoxW + 3;
-            pdf.text('Kode Form', rx, y + 5); pdf.text(': MGT - 003', rx + 28, y + 5);
-            pdf.text('No. Terbitan', rx, y + 8.5); pdf.text(': 2.0', rx + 28, y + 8.5);
-            pdf.text('Tgl. Efektif', rx, y + 12); pdf.text(': 02 Oktober 2023', rx + 28, y + 12);
-            pdf.text('Halaman', rx, y + 15.5); pdf.text(': 1 / 1', rx + 28, y + 15.5);
+            pdf.text('Kode Form', rx, y + 6); pdf.text(': MGT - 003', rx + 26, y + 6);
+            pdf.text('No. Terbitan', rx, y + 10); pdf.text(': 2.0', rx + 26, y + 10);
+            pdf.text('Tgl. Efektif', rx, y + 14); pdf.text(': 02 Oktober 2023', rx + 26, y + 14);
+            pdf.text('Halaman', rx, y + 18); pdf.text(': 1 / 1', rx + 26, y + 18);
             y += headerH;
 
-            // Header Row 2: Title + Checkboxes
-            var row2H = 22;
-            var titleW = contentW * 0.45;
+            // --- Header Row 2: Title + Checkboxes ---
+            var row2H = 24;
+            var titleW = contentW * 0.44;
             pdf.rect(margin, y, titleW, row2H);
             pdf.rect(margin + titleW, y, contentW - titleW, row2H);
 
             pdf.setFont('times', 'bold');
             pdf.setFontSize(13);
-            pdf.text('PENGAMATAN', margin + titleW / 2, y + 8, { align: 'center' });
-            pdf.text('INTERNAL AUDIT', margin + titleW / 2, y + 14, { align: 'center' });
+            pdf.text('PENGAMATAN', margin + titleW / 2, y + 9, { align: 'center' });
+            pdf.text('INTERNAL AUDIT', margin + titleW / 2, y + 15, { align: 'center' });
 
+            // Checkboxes: 3 columns x 3 rows
             var cbx = margin + titleW + 3;
-            var cby = y + 3;
+            var cby = y + 4;
             var cbs = 4;
+            var cbColW = (contentW - titleW - 6) / 3;
             var cbData = [
               ['Halal', d.kategori === 'Halal' ? 'V' : ''],
               ['SMK3', d.kategori === 'SMK3' ? 'V' : ''],
-              ['', ''],
+              ['..........', ''],
               ['ISO', d.kategori === 'ISO' ? 'V' : ''],
               ['SML', d.kategori === 'SML' ? 'V' : ''],
-              ['..........', ''],
+              ['', ''],
               ['FSSC', d.kategori === 'FSSC' ? 'V' : ''],
               ['SME', d.kategori === 'SME' ? 'V' : ''],
               ['', '']
             ];
-            var cbColW = (contentW - titleW) / 3;
             pdf.setFont('times', 'bold');
             pdf.setFontSize(10);
             cbData.forEach(function(cb, idx) {
               var col = idx % 3, row = Math.floor(idx / 3);
               var cx = cbx + col * cbColW;
-              var cy = cby + row * 6;
+              var cy = cby + row * 7;
               if (cb[0]) {
-                pdf.setLineWidth(0.2);
-                pdf.rect(cx, cy, cbs, 3.2);
-                if (cb[1] === 'V') { pdf.setFontSize(9); pdf.text('V', cx + 1, cy + 2.5); }
+                pdf.setLineWidth(0.3);
+                pdf.rect(cx, cy, cbs, 3.5);
+                if (cb[1] === 'V') { pdf.setFontSize(10); pdf.text('V', cx + 1.2, cy + 2.8); }
                 pdf.setFontSize(10);
-                pdf.text(cb[0], cx + cbs + 1.5, cy + 2.5);
+                pdf.text(cb[0], cx + cbs + 1.5, cy + 2.8);
               }
             });
             y += row2H;
 
-            // Header Row 3: Dept + Date
-            var row3H = 12;
+            // --- Header Row 3: Dept + Date ---
+            var row3H = 14;
             pdf.rect(margin, y, contentW, row3H);
             pdf.setFont('times', 'bold');
             pdf.setFontSize(11);
-            pdf.text('Departemen', margin + 3, y + 5);
-            pdf.text(': ' + (d.departemen || ''), margin + 30, y + 5);
-            pdf.text('Tanggal', margin + 3, y + 10);
-            pdf.text(': ' + dateStr, margin + 30, y + 10);
+            pdf.text('Departemen', margin + 4, y + 6);
+            pdf.text(': ' + (d.departemen || ''), margin + 32, y + 6);
+            pdf.text('Tanggal', margin + 4, y + 11);
+            pdf.text(': ' + dateStr, margin + 32, y + 11);
             y += row3H;
 
-            // Data Table
-            var colW = [contentW * 0.05, contentW * 0.60, contentW * 0.20, contentW * 0.15];
+            // --- Data Table ---
+            var colW = [contentW * 0.06, contentW * 0.54, contentW * 0.20, contentW * 0.20];
             pdf.setLineWidth(0.3);
             pdf.line(margin, y, margin + contentW, y);
 
-            var headH = 10;
+            var headH = 12;
             pdf.setFont('times', 'bold');
             pdf.setFontSize(10);
-            var headers = ['NO.', 'HASIL PENGAMATAN', 'ELEMEN /\nKLAUSUL', 'KATEGORI'];
-            var hx = margin;
-            headers.forEach(function(h, i) {
-              var lines = h.split('\n');
-              lines.forEach(function(l, li) { pdf.text(l, hx + colW[i] / 2, y + 4 + li * 3.5, { align: 'center' }); });
-              hx += colW[i];
-            });
+            // Header "NO."
+            pdf.text('NO.', margin + colW[0] / 2, y + 5, { align: 'center' });
+            // Header "HASIL PENGAMATAN"
+            pdf.text('HASIL PENGAMATAN', margin + colW[0] + colW[1] / 2, y + 5, { align: 'center' });
+            // Header "ELEMEN / KLAUSUL" (two lines)
+            pdf.text('ELEMEN /', margin + colW[0] + colW[1] + colW[2] / 2, y + 4, { align: 'center' });
+            pdf.text('KLAUSUL', margin + colW[0] + colW[1] + colW[2] / 2, y + 8.5, { align: 'center' });
+            // Header "KATEGORI"
+            pdf.text('KATEGORI', margin + colW[0] + colW[1] + colW[2] + colW[3] / 2, y + 5, { align: 'center' });
+
             y += headH;
             pdf.line(margin, y, margin + contentW, y);
 
@@ -3709,25 +3721,29 @@
             });
             var rn = 1;
             dataRows.forEach(function(row) {
-              var textLines = pdf.splitTextToSize(row.hasilPengamatan || '', colW[1] - 4);
-              var rh = Math.max(7, textLines.length * 4 + 4);
+              var textLines = pdf.splitTextToSize(row.hasilPengamatan || '', colW[1] - 6);
+              var rh = Math.max(8, textLines.length * 4.5 + 4);
 
               if (y + rh > pageH - margin - 55) { pdf.addPage(); y = margin; }
 
               pdf.line(margin, y, margin + contentW, y);
               var rx2 = margin;
 
+              // NO
               pdf.setFont('times', 'bold');
               pdf.text(String(rn++), rx2 + colW[0] / 2, y + 5, { align: 'center' });
               rx2 += colW[0];
 
+              // HASIL PENGAMATAN
               pdf.setFont('times', 'normal');
-              pdf.text(textLines, rx2 + 2, y + 4);
+              pdf.text(textLines, rx2 + 3, y + 4);
               rx2 += colW[1];
 
+              // ELEMEN/KLAUSUL
               pdf.text(String(row.kriteria || '-'), rx2 + colW[2] / 2, y + 5, { align: 'center' });
               rx2 += colW[2];
 
+              // KATEGORI
               pdf.text(String(row.kategoriVal || '-'), rx2 + colW[3] / 2, y + 5, { align: 'center' });
 
               y += rh;
@@ -3735,6 +3751,7 @@
               pdf.line(margin, y, margin + contentW, y);
               pdf.setLineWidth(0.3);
 
+              // Vertical column separators
               rx2 = margin;
               for (var ci2 = 0; ci2 <= colW.length; ci2++) {
                 pdf.line(rx2, y - rh, rx2, y);
@@ -3742,8 +3759,18 @@
               }
             });
 
-            // Signature area
+            // Fill remaining table space with vertical lines down to signature area
             var sigTop = Math.max(y + 5, pageH - margin - 55);
+            if (y < sigTop) {
+              pdf.setLineWidth(0.3);
+              rx2 = margin;
+              for (var ci3 = 0; ci3 <= colW.length; ci3++) {
+                pdf.line(rx2, y, rx2, sigTop);
+                if (ci3 < colW.length) rx2 += colW[ci3];
+              }
+            }
+
+            // --- Signature area ---
             pdf.setLineWidth(0.3);
             pdf.line(margin, sigTop, margin + contentW, sigTop);
             y = sigTop + 3;
@@ -3755,7 +3782,7 @@
             pdf.setFont('times', 'bold');
             pdf.setFontSize(11);
             pdf.text('Auditor', margin + sigColW / 2, y + 5, { align: 'center' });
-            if (imageMap[d.auditorSignature]) {
+            if (imageMap[d.auditorSignature] && typeof imageMap[d.auditorSignature] === 'string') {
               try { pdf.addImage(imageMap[d.auditorSignature], 'JPEG', margin + sigColW / 2 - 20, y + 7, 40, 22); } catch(e) {}
             }
             pdf.line(margin + sigColW / 2 - 18, signNameY, margin + sigColW / 2 + 18, signNameY);
@@ -3767,7 +3794,7 @@
             pdf.setFont('times', 'bold');
             pdf.setFontSize(11);
             pdf.text('Auditee', ax + sigColW / 2, y + 5, { align: 'center' });
-            if (imageMap[d.auditeeSignature]) {
+            if (imageMap[d.auditeeSignature] && typeof imageMap[d.auditeeSignature] === 'string') {
               try { pdf.addImage(imageMap[d.auditeeSignature], 'JPEG', ax + sigColW / 2 - 20, y + 7, 40, 22); } catch(e) {}
             }
             pdf.line(ax + sigColW / 2 - 18, signNameY, ax + sigColW / 2 + 18, signNameY);
@@ -3781,7 +3808,7 @@
             pdf.text('Kategori :', lx + 2, y + 5);
             pdf.setFont('times', 'italic');
             pdf.setFontSize(9);
-            ['C = Conformance','Minor = Temuan Minor','Major = Temuan Major','Kritis = Temuan Kritis'].forEach(function(t, i) {
+            ['C    = Conformance','Minor = Temuan Minor','Major = Temuan Major','Kritis = Temuan Kritis'].forEach(function(t, i) {
               pdf.text(t, lx + 2, y + 10 + i * 4);
             });
 
@@ -3802,11 +3829,6 @@
               pdf.addPage();
               y = margin;
 
-              // Border
-              pdf.setDrawColor(0);
-              pdf.setLineWidth(0.3);
-              pdf.rect(margin, margin, contentW, pageH - margin * 2);
-
               // Title
               pdf.setFont('times', 'bold');
               pdf.setFontSize(14);
@@ -3816,14 +3838,14 @@
               y += 18;
 
               // 2-column grid
-              var gap = 8;
+              var gap = 10;
               var cellW = (contentW - gap * 3) / 2;
               var cellH = cellW;
 
               d.lampiran.forEach(function(item, idx) {
                 var col = idx % 2, row = Math.floor(idx / 2);
                 var ix = margin + gap + col * (cellW + gap);
-                var iy = y + gap + row * (cellH + gap + 6);
+                var iy = y + gap + row * (cellH + gap + 8);
 
                 if (iy + cellH + 10 > pageH - margin) { pdf.addPage(); y = margin + 18; iy = y + gap; }
 
@@ -3831,14 +3853,14 @@
                 pdf.setLineWidth(0.1);
                 pdf.rect(ix, iy, cellW, cellH);
 
-                if (imageMap[item.url]) {
+                if (imageMap[item.url] && typeof imageMap[item.url] === 'string') {
                   try { pdf.addImage(imageMap[item.url], 'JPEG', ix + 1, iy + 1, cellW - 2, cellH - 2); } catch(e) {}
                 }
 
                 pdf.setFont('times', 'italic');
                 pdf.setFontSize(9);
                 pdf.setTextColor(0);
-                pdf.text(item.caption || 'Lampiran ke-' + (idx + 1), ix + cellW / 2, iy + cellH + 4, { align: 'center' });
+                pdf.text(item.caption || 'Lampiran ke-' + (idx + 1), ix + cellW / 2, iy + cellH + 5, { align: 'center' });
               });
             }
 

@@ -522,7 +522,12 @@ function handleFetchImages(fileIds) {
     const results = {};
     fileIds.forEach(function(id) {
       try {
-        const url = 'https://drive.google.com/uc?export=view&id=' + id;
+        let driveId = id;
+        if (id.indexOf('drive.google.com') !== -1) {
+          const m = id.match(/id=([^&]+)/);
+          if (m) driveId = m[1];
+        }
+        const url = 'https://drive.google.com/uc?export=view&id=' + driveId;
         const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
         const blob = response.getBlob();
         const base64 = Utilities.base64Encode(blob.getBytes());
