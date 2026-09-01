@@ -3744,93 +3744,123 @@
             // Header bottom border
             pdf.line(bx, cy, bx + cw, cy);
 
-            // Data rows
+            // Data rows - selalu tampilkan minimal 25 baris agar sesuai form fisik (MGT-003)
             pdf.setFont('times', 'normal');
             pdf.setFontSize(10);
-            var dataRows = (d.checklistData || []).filter(function(row) {
+            var rawRows = (d.checklistData || []).filter(function(row) {
               return row.type !== 1 && row.type !== 2 && row.type !== 3;
             });
+            // Padding sampai 25 baris jika data kurang (agar tabel penuh seperti contoh)
+            var TARGET_ROWS = 25;
+            var dataRows = rawRows.slice();
+            if (dataRows.length < TARGET_ROWS) {
+              for (var p = dataRows.length; p < TARGET_ROWS; p++) {
+                var padKriteria = p < 20 ? '3' : '4';
+                dataRows.push({ hasilPengamatan: '', kriteria: padKriteria, kategoriVal: '-' });
+              }
+            }
             var rn = 1;
+            var MAX_TABLE_BOTTOM = by + bh - 50; // sisakan 50mm untuk signature + hash
 
-            dataRows.forEach(function(row) {
+            dataRows.forEach(function(row, idx) {
               var txt = String(row.hasilPengamatan || '');
-              var lines = txt ? pdf.splitTextToSize(txt, colW[1] - 6) : [''];
-              var rh = Math.max(7, lines.length * 4 + 3);
+              var isEmpty = txt.trim() === '';
+              var lines = isEmpty ? [''] : pdf.splitTextToSize(txt, colW[1] - 6);
+              // Tinggi: kosong 6.2mm agar 25 baris muat 1 halaman; isi sesuai wrap
+              var rh = isEmpty ? 6.2 : Math.max(7.5, lines.length * 3.8 + 3.5);
+              // Jika akan melebihi batas tabel, buat halaman baru (jarang terjadi karena 25 muat 1 halaman)
+              if (cy + rh > MAX_TABLE_BOTTOM && idx !== 0) {
+                // Tutup page saat ini dan buat page baru untuk sisa baris + signature
+                // Untuk sederhana, kecilkan rh agar muat (kompresi)
+                rh = 7.5;
+              }
 
-              // Draw vertical column lines + row content
-              tx = cx;
-
+              var rowTop = cy;
+              // Isi text dulu (sebelum garis) agar text tidak tertutup
               // NO
               pdf.setFont('times', 'bold');
-              pdf.text(String(rn++), tx + colW[0] / 2, cy + 5, { align: 'center' });
-              tx += colW[0];
-
+              pdf.setFont('times', 'bold');
+              pdf.setFontSize(9);
+              pdf.text(String(row.no || rn), cx + colW[0] / 2, rowTop + 5, { align: 'center' });
               // HASIL PENGAMATAN
               pdf.setFont('times', 'normal');
-              pdf.text(lines, tx + 3, cy + 4);
-              tx += colW[1];
-
+              pdf.setFontSize(9);
+              if (!isEmpty) {
+                pdf.text(lines, cx + colW[0] + 3, rowTop + 5);
+              }
               // ELEMEN/KLAUSUL
-              pdf.text(String(row.kriteria || '-'), tx + colW[2] / 2, cy + 5, { align: 'center' });
-              tx += colW[2];
-
+              pdf.setFont('times', 'normal');
+              pdf.setFontSize(9);
+              var kriteriaVal = row.kriteria ? String(row.kriteria) : '-';
+              if (kriteriaVal.trim() === '') kriteriaVal = '-';
+              pdf.text(kriteriaVal, cx + colW[0] + colW[1] + colW[2]/2, rowTop + 5, { align: 'center' });
               // KATEGORI
-              pdf.text(String(row.kategoriVal || '-'), tx + colW[3] / 2, cy + 5, { align: 'center' });
+              var katVal = row.kategoriVal ? String(row.kategoriVal) : '-';
+              if (katVal.trim() === '') katVal = '-';
+              pdf.text(katVal, cx + colW[0] + colW[1] + colW[2] + colW[3]/2, rowTop + 5, { align: 'center' });
 
+              rn++;
               cy += rh;
 
-              // Row separator line
-              pdf.setLineWidth(0.15);
+              // Garis horizontal bawah baris
+              pdf.setDrawColor(0);
+              pdf.setLineWidth(0.18);
               pdf.line(bx, cy, bx + cw, cy);
               pdf.setLineWidth(0.3);
 
-              // Vertical column separators
-              tx = cx;
+              // Garis vertikal kolom untuk baris ini
+              var vx = cx;
               for (var ci2 = 0; ci2 <= colW.length; ci2++) {
-                pdf.line(tx, cy - rh, tx, cy);
-                if (ci2 < colW.length) tx += colW[ci2];
+                pdf.line(vx, rowTop, vx, cy);
+                if (ci2 < colW.length) vx += colW[ci2];
               }
             });
 
-            // After data rows, extend vertical lines down to signature area
-            // Signature area starts at fixed position from bottom
+            // Setelah semua baris, cy sudah di bottom tabel. Pastikan cy = MAX_TABLE_BOTTOM jika masih ada sisa space -> extend vertical lines sudah tergambar per baris, tidak perlu extend lagi
+            // Jika masih ada sisa space karena row height kompresi, gambar rect kosong sampai signature Top
             var sigAreaH = 50;
             var sigTop = by + bh - sigAreaH;
-            var lastDataRowY = cy;
-
-            if (lastDataRowY < sigTop) {
-              // Bottom border of table area
-              pdf.setLineWidth(0.3);
-              pdf.line(bx, lastDataRowY, bx + cw, lastDataRowY);
-
-              // Extend vertical lines from last data row to sigTop
-              tx = cx;
+            var hashH = 8;
+            var sigBottom = by + bh - hashH;
+            // Jika cy < sigTop, tambahkan baris kosong visual (tidak ada data) sampai sigTop dengan garis tipis
+            if (cy < sigTop) {
+              // Gambar area kosong dengan border luar saja (vertical lines sudah, tinggal horizontal tidak perlu)
+              // Pastikan garis vertikal dari cy ke sigTop
+              var vx2 = cx;
               for (var ci3 = 0; ci3 <= colW.length; ci3++) {
-                pdf.line(tx, lastDataRowY, tx, sigTop);
-                if (ci3 < colW.length) tx += colW[ci3];
+                pdf.setLineWidth(0.18);
+                pdf.line(vx2, cy, vx2, sigTop);
+                if (ci3 < colW.length) vx2 += colW[ci3];
               }
+              // Garis bawah tabel = top signature
+              pdf.setLineWidth(0.3);
+              pdf.line(bx, sigTop, bx + cw, sigTop);
               cy = sigTop;
+            } else {
+              // cy sudah = sigTop atau lebih, pakai cy sebagai top signature
+              sigTop = cy;
+              sigBottom = sigTop + sigAreaH - hashH;
             }
 
             // --- SIGNATURE AREA ---
-            // Top border of signature area
+            pdf.setDrawColor(0);
             pdf.setLineWidth(0.3);
-            pdf.line(bx, cy, bx + cw, cy);
-
-            // Bottom border of signature area (just above hash)
-            var hashH = 8;
-            var sigBottom = by + bh - hashH;
+            // Top border signature sudah digambar, gambar bottom border (atas hash)
             pdf.line(bx, sigBottom, bx + cw, sigBottom);
-
-            var sigY = cy + 3;
+            // Vertical dividers signature (2 garis)
             var sigColW = cw / 3;
-            var sigImgW = 42;
-            var sigImgH = 24;
+            pdf.line(bx + sigColW, sigTop, bx + sigColW, sigBottom);
+            pdf.line(bx + sigColW * 2, sigTop, bx + sigColW * 2, sigBottom);
+            // Outer sudah rect, tapi pastikan sisi luar tetap
+
+            var sigY = sigTop + 4;
+            var sigImgW = 38;
+            var sigImgH = 22;
 
             // --- Auditor ---
             var col1X = bx;
             pdf.setFont('times', 'bold');
-            pdf.setFontSize(12);
+            pdf.setFontSize(11);
             pdf.text('Auditor', col1X + sigColW / 2, sigY + 3, { align: 'center' });
 
             if (imageMap['auditor'] && typeof imageMap['auditor'] === 'string' && imageMap['auditor'].length > 100) {
@@ -3841,15 +3871,21 @@
             }
 
             var nameLineY = sigY + sigImgH + 12;
-            pdf.line(col1X + sigColW / 2 - 22, nameLineY, col1X + sigColW / 2 + 22, nameLineY);
+            pdf.setLineWidth(0.25);
+            pdf.line(col1X + sigColW / 2 - 24, nameLineY, col1X + sigColW / 2 + 24, nameLineY);
             pdf.setFont('times', 'bold');
-            pdf.setFontSize(11);
-            pdf.text(d.auditorName || '', col1X + sigColW / 2, nameLineY + 5, { align: 'center' });
+            pdf.setFontSize(10);
+            // Potong nama jika terlalu panjang agar muat
+            var audName = d.auditorName || '';
+            if (pdf.getTextWidth(audName) > sigColW - 10) {
+              audName = pdf.splitTextToSize(audName, sigColW - 10)[0];
+            }
+            pdf.text(audName, col1X + sigColW / 2, nameLineY + 5, { align: 'center' });
 
             // --- Auditee ---
             var col2X = bx + sigColW;
             pdf.setFont('times', 'bold');
-            pdf.setFontSize(12);
+            pdf.setFontSize(11);
             pdf.text('Auditee', col2X + sigColW / 2, sigY + 3, { align: 'center' });
 
             if (imageMap['auditee'] && typeof imageMap['auditee'] === 'string' && imageMap['auditee'].length > 100) {
@@ -3859,21 +3895,26 @@
               } catch(e) { console.error('[Matrika] Auditee img err:', e); }
             }
 
-            pdf.line(col2X + sigColW / 2 - 22, nameLineY, col2X + sigColW / 2 + 22, nameLineY);
+            pdf.setLineWidth(0.25);
+            pdf.line(col2X + sigColW / 2 - 24, nameLineY, col2X + sigColW / 2 + 24, nameLineY);
             pdf.setFont('times', 'bold');
-            pdf.setFontSize(11);
-            pdf.text(d.auditeeName || '', col2X + sigColW / 2, nameLineY + 5, { align: 'center' });
+            pdf.setFontSize(10);
+            var auditeeName = d.auditeeName || '';
+            if (pdf.getTextWidth(auditeeName) > sigColW - 10) {
+              auditeeName = pdf.splitTextToSize(auditeeName, sigColW - 10)[0];
+            }
+            pdf.text(auditeeName, col2X + sigColW / 2, nameLineY + 5, { align: 'center' });
 
             // --- Kategori Legend ---
             var col3X = bx + sigColW * 2;
             pdf.setFont('times', 'bold');
-            pdf.setFontSize(12);
-            pdf.text('Kategori :', col3X + 5, sigY + 3);
+            pdf.setFontSize(10);
+            pdf.text('Kategori :', col3X + 4, sigY + 4);
             pdf.setFont('times', 'italic');
-            pdf.setFontSize(11);
-            var kats = ['C    = Conformance','Minor = Temuan Minor','Major = Temuan Major','Kritis = Temuan Kritis'];
+            pdf.setFontSize(9);
+            var kats = ['C      = Conformance','Minor = Temuan Minor','Major = Temuan Major','Kritis = Temuan Kritis'];
             kats.forEach(function(t, i) {
-              pdf.text(t, col3X + 5, sigY + 12 + i * 6);
+              pdf.text(t, col3X + 4, sigY + 12 + i * 5.5);
             });
 
             // --- HASH ---
@@ -3912,33 +3953,63 @@
               var cellW = (cw - gridPad * 2 - cellGap) / 2;
               var cellH = cellW;
 
+              // Render lampiran dengan pagination yang benar
+              var itemsPerPage = 4; // 2 kolom x 2 baris per halaman agar tetap lega
               d.lampiran.forEach(function(item, idx) {
-                var col = idx % 2;
-                var row = Math.floor(idx / 2);
+                var pageIdx = Math.floor(idx / itemsPerPage);
+                var idxInPage = idx % itemsPerPage;
+                var col = idxInPage % 2;
+                var row = Math.floor(idxInPage / 2);
+                // Jika halaman baru dibutuhkan
+                var currentPage = 1 + pageIdx; // page 1 = form, lampiran mulai page 2
+                // jsPDF page count: after addPage untuk lampiran pertama, current page = 2
+                // Kita perlu addPage untuk setiap pageIdx >0
+                if (idx !== 0 && idxInPage === 0) {
+                  pdf.addPage();
+                  pdf.setDrawColor(0);
+                  pdf.setLineWidth(0.5);
+                  pdf.rect(bx, by, bw, bh);
+                  // Judul LAMPIRAN hanya halaman pertama lampiran; halaman lanjutan tanpa judul agar bersih
+                  // Tapi tetap beri header kecil
+                  pdf.setFont('times', 'bold');
+                  pdf.setFontSize(12);
+                  pdf.text('LAMPIRAN (lanjutan)', bx + cw/2, by + 12, { align: 'center' });
+                  gridStartY = by + 18;
+                }
                 var ix = bx + gridPad + col * (cellW + cellGap);
                 var iy = gridStartY + gridPad + row * (cellH + 20);
 
-                if (iy + cellH + 15 > by + bh) { pdf.addPage(); gridStartY = by + 12 + 10; iy = gridStartY + gridPad; }
-
                 // Image border
                 pdf.setDrawColor(0);
-                pdf.setLineWidth(0.2);
+                pdf.setLineWidth(0.25);
                 pdf.rect(ix, iy, cellW, cellH);
 
-                // Insert image
+                // Insert image (cover)
                 var lk = 'lamp_' + idx;
                 if (imageMap[lk] && typeof imageMap[lk] === 'string' && imageMap[lk].length > 100) {
                   try {
                     var fmt = imageMap[lk].indexOf('image/png') > -1 ? 'PNG' : 'JPEG';
-                    pdf.addImage(imageMap[lk], fmt, ix + 1, iy + 1, cellW - 2, cellH - 2);
+                    pdf.addImage(imageMap[lk], fmt, ix + 0.8, iy + 0.8, cellW - 1.6, cellH - 1.6);
                   } catch(e) { console.error('[Matrika] Lamp err idx=' + idx, e); }
+                } else {
+                  // Placeholder jika gambar gagal load
+                  pdf.setFont('times', 'italic');
+                  pdf.setFontSize(9);
+                  pdf.setTextColor(150);
+                  pdf.text('Gambar tidak tersedia', ix + cellW/2, iy + cellH/2, { align: 'center' });
+                  pdf.setTextColor(0);
                 }
 
                 // Caption
                 pdf.setFont('times', 'italic');
-                pdf.setFontSize(10);
+                pdf.setFontSize(9);
+                pdf.setTextColor(0);
                 var cap = item.caption || ('Lampiran ke-' + (idx + 1));
-                pdf.text(cap, ix + cellW / 2, iy + cellH + 8, { align: 'center' });
+                // Potong caption jika terlalu panjang
+                if (pdf.getTextWidth(cap) > cellW) {
+                  cap = pdf.splitTextToSize(cap, cellW)[0];
+                }
+                pdf.text(cap, ix + cellW / 2, iy + cellH + 7, { align: 'center' });
               });
             }
 
