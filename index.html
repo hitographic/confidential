@@ -117,6 +117,53 @@
       border-bottom: 1px solid rgba(255,255,255,0.06);
     }
 
+    .user-dropdown { position: relative; }
+    .user-avatar-btn {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--secondary), #818cf8);
+      border: 2px solid rgba(255,255,255,0.2);
+      color: white; font-size: 15px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all 0.2s; padding: 0;
+      font-family: 'Inter', sans-serif;
+    }
+    .user-avatar-btn:hover { border-color: rgba(255,255,255,0.5); transform: scale(1.08); }
+    .user-avatar-btn:focus { outline: none; box-shadow: 0 0 0 3px rgba(99,102,241,0.4); }
+
+    .user-dropdown-menu {
+      display: none; position: absolute; top: calc(100% + 10px); right: 0;
+      min-width: 220px; background: rgba(15,23,42,0.97);
+      backdrop-filter: blur(20px); border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+      padding: 8px; z-index: 200;
+      animation: dropdownFadeIn 0.2s ease-out;
+    }
+    .user-dropdown-menu.show { display: block; }
+    @keyframes dropdownFadeIn { from { opacity:0; transform: translateY(-8px); } to { opacity:1; transform: translateY(0); } }
+
+    .dropdown-user-info {
+      padding: 12px 14px; margin-bottom: 4px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .dropdown-user-info .user-name { font-size: 14px; font-weight: 600; color: #fff; }
+    .dropdown-user-info .user-nik { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+    .dropdown-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px; border-radius: 10px;
+      font-size: 13px; color: #cbd5e1; cursor: pointer;
+      transition: all 0.15s; border: none; background: none;
+      width: 100%; text-align: left; font-family: inherit;
+    }
+    .dropdown-item:hover { background: rgba(99,102,241,0.15); color: #fff; }
+    .dropdown-item i { width: 18px; text-align: center; font-size: 14px; opacity: 0.7; }
+    .dropdown-item:hover i { opacity: 1; }
+    .dropdown-item.danger { color: #f87171; }
+    .dropdown-item.danger:hover { background: rgba(244,63,94,0.15); color: #fca5a5; }
+    .dropdown-item.danger i { opacity: 0.8; }
+    .dropdown-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 4px 10px; }
+
     .container {
       max-width: 1200px;
       margin: 28px auto;
@@ -554,11 +601,26 @@
       </div>
       Confidential
     </div>
-    <div style="display: flex; gap: 10px; align-items: center;">
-      <span id="navAuditorName" style="font-size: 13px; font-weight: 500; opacity: 0.8;"></span>
-      <button class="btn btn-outline" style="color: white; border-color: rgba(255,255,255,0.15); font-size: 12px;" onclick="openRegisterSignature()"><i class="fa-solid fa-pen-nib"></i> Ganti TTD</button>
-      <button class="btn btn-outline" style="color: white; border-color: rgba(255,255,255,0.15); font-size: 12px;" onclick="openChangePassword()"><i class="fa-solid fa-lock"></i> Ganti Password</button>
-      <button class="btn btn-outline" style="color: white; border-color: rgba(255,255,255,0.15); font-size: 12px;" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Keluar</button>
+    <div class="user-dropdown">
+      <button class="user-avatar-btn" onclick="toggleUserDropdown(event)" id="userAvatarBtn">
+        <span id="userAvatarInitial">U</span>
+      </button>
+      <div class="user-dropdown-menu" id="userDropdownMenu">
+        <div class="dropdown-user-info">
+          <div class="user-name" id="dropdownUserName">-</div>
+          <div class="user-nik" id="dropdownUserNik">NIK: -</div>
+        </div>
+        <button class="dropdown-item" onclick="openRegisterSignature(); closeUserDropdown();">
+          <i class="fa-solid fa-pen-nib"></i> Ganti Tanda Tangan
+        </button>
+        <button class="dropdown-item" onclick="openChangePassword(); closeUserDropdown();">
+          <i class="fa-solid fa-lock"></i> Ganti Password
+        </button>
+        <div class="dropdown-divider"></div>
+        <button class="dropdown-item danger" onclick="logout();">
+          <i class="fa-solid fa-right-from-bracket"></i> Keluar
+        </button>
+      </div>
     </div>
   </nav>
 
@@ -1261,6 +1323,32 @@
       function showModal(modalId) { document.getElementById(modalId).classList.remove('hidden'); }
       function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
 
+      function updateNavbarUser() {
+        var name = currentUser.nama || 'User';
+        var nik = currentUser.nik || '-';
+        var initial = name.charAt(0).toUpperCase();
+        document.getElementById('userAvatarInitial').textContent = initial;
+        document.getElementById('dropdownUserName').textContent = name;
+        document.getElementById('dropdownUserNik').textContent = 'NIK: ' + nik;
+      }
+
+      function toggleUserDropdown(e) {
+        e.stopPropagation();
+        var menu = document.getElementById('userDropdownMenu');
+        menu.classList.toggle('show');
+      }
+
+      function closeUserDropdown() {
+        document.getElementById('userDropdownMenu').classList.remove('show');
+      }
+
+      document.addEventListener('click', function(e) {
+        var dropdown = document.querySelector('.user-dropdown');
+        if (dropdown && !dropdown.contains(e.target)) {
+          closeUserDropdown();
+        }
+      });
+
       function checkSignatureOnLogin() {
         if (!currentUser.nik || currentUser.nik === 'guest') return;
         fetch(GAS_URL, {
@@ -1447,7 +1535,7 @@
             if (res.success) {
               currentUser = { nik, nama: res.nama, role: res.role };
               sessionStorage.setItem('matrika_user', JSON.stringify(currentUser));
-              document.getElementById('navAuditorName').innerText = res.nama;
+              updateNavbarUser();
               
               if (currentUser.role && currentUser.role.toLowerCase() === 'admin') {
                 document.getElementById('btnExportExcelList').style.display = 'inline-flex';
@@ -1467,7 +1555,7 @@
             Swal.fire('Info', 'Mode Demo (Backend belum diperbarui). Login sebagai Guest.', 'info');
             currentUser = { nik: 'guest', nama: 'Auditor Demo' };
             sessionStorage.setItem('matrika_user', JSON.stringify(currentUser));
-            document.getElementById('navAuditorName').innerText = currentUser.nama;
+            updateNavbarUser();
             changeState('stateMenu');
             if (!localStorage.getItem('signature_' + currentUser.nik)) openRegisterSignature();
           })
@@ -2569,7 +2657,7 @@
         const savedUser = sessionStorage.getItem('matrika_user');
         if (savedUser) {
            currentUser = JSON.parse(savedUser);
-           document.getElementById('navAuditorName').innerText = currentUser.nama;
+           updateNavbarUser();
            if (currentUser.role && currentUser.role.toLowerCase() === 'admin') {
              document.getElementById('btnExportExcelList').style.display = 'inline-flex';
            }
