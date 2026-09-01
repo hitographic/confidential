@@ -602,7 +602,7 @@
       Confidential
     </div>
     <div class="user-dropdown" id="userDropdown">
-      <button class="user-avatar-btn" id="userAvatarBtn">
+      <button class="user-avatar-btn" id="userAvatarBtn" onclick="toggleUserDropdown(event)">
         <span id="userAvatarInitial">U</span>
       </button>
       <div class="user-dropdown-menu" id="userDropdownMenu">
@@ -610,14 +610,14 @@
           <div class="user-name" id="dropdownUserName">-</div>
           <div class="user-nik" id="dropdownUserNik">NIK: -</div>
         </div>
-        <button class="dropdown-item" id="btnGantiTTD">
+        <button class="dropdown-item" onclick="closeUserDropdown(); setTimeout(openRegisterSignature, 150);">
           <i class="fa-solid fa-pen-nib"></i> Ganti Tanda Tangan
         </button>
-        <button class="dropdown-item" id="btnGantiPassword">
+        <button class="dropdown-item" onclick="closeUserDropdown(); setTimeout(openChangePassword, 150);">
           <i class="fa-solid fa-lock"></i> Ganti Password
         </button>
         <div class="dropdown-divider"></div>
-        <button class="dropdown-item danger" id="btnKeluar">
+        <button class="dropdown-item danger" onclick="closeUserDropdown(); setTimeout(logout, 150);">
           <i class="fa-solid fa-right-from-bracket"></i> Keluar
         </button>
       </div>
@@ -1332,43 +1332,21 @@
         document.getElementById('dropdownUserNik').textContent = 'NIK: ' + nik;
       }
 
+      function toggleUserDropdown(e) {
+        e.stopPropagation();
+        document.getElementById('userDropdownMenu').classList.toggle('show');
+      }
+
       function closeUserDropdown() {
         var menu = document.getElementById('userDropdownMenu');
         if (menu) menu.classList.remove('show');
       }
-
-      document.getElementById('userAvatarBtn').addEventListener('click', function(e) {
-        e.stopPropagation();
-        document.getElementById('userDropdownMenu').classList.toggle('show');
-      });
-
-      document.getElementById('btnGantiTTD').addEventListener('click', function(e) {
-        e.stopPropagation();
-        closeUserDropdown();
-        openRegisterSignature();
-      });
-
-      document.getElementById('btnGantiPassword').addEventListener('click', function(e) {
-        e.stopPropagation();
-        closeUserDropdown();
-        openChangePassword();
-      });
-
-      document.getElementById('btnKeluar').addEventListener('click', function(e) {
-        e.stopPropagation();
-        closeUserDropdown();
-        logout();
-      });
 
       document.addEventListener('click', function(e) {
         var dropdown = document.getElementById('userDropdown');
         if (dropdown && !dropdown.contains(e.target)) {
           closeUserDropdown();
         }
-      });
-
-      document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeUserDropdown();
       });
 
       function checkSignatureOnLogin() {
