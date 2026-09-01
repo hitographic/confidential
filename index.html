@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -910,7 +911,10 @@
     <div class="modal-content modal-large">
       <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
         <h3>Preview Laporan</h3>
-        <button class="btn btn-outline" onclick="closeModal('modalPreview')"><i class="fa-solid fa-xmark"></i></button>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-outline" onclick="exportPreviewToPDF()" style="font-size: 12px;"><i class="fa-solid fa-file-pdf" style="color:#f43f5e;"></i> Export to PDF</button>
+          <button class="btn btn-outline" onclick="closeModal('modalPreview')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
       </div>
 
       <div class="preview-wrapper">
@@ -1144,6 +1148,8 @@
       let formPhotos = {}; // { index: [{ id, url, fileId, caption }] }
       let currentCropIndex = null;
       let currentCropData = null;
+      let previewSource = null; // 'list' or 'form'
+      let previewItemId = null;
 
       function saveSessionState() {
         sessionStorage.setItem('matrika_state', JSON.stringify({
@@ -2626,6 +2632,8 @@
 
       function previewData(id) {
         try {
+        previewSource = 'list';
+        previewItemId = id;
         Swal.fire({ title: 'Memuat Preview...', didOpen: () => Swal.showLoading() });
         fetch(GAS_URL, {
           method: 'POST', body: JSON.stringify({ action: 'getDetail', id: id })
@@ -2728,6 +2736,9 @@
       function showPreview() {
         const cData = collectFormData();
         if (!cData) return; // Validation failed
+
+        previewSource = 'form';
+        previewItemId = currentEditId;
 
         // Set Header Info
         const cbHtml = `
@@ -4046,6 +4057,95 @@
 
         // Kembalikan nama title web semula
         document.title = originalTitle;
+      }
+
+      function exportPreviewToPDF() {
+        if (typeof html2canvas === 'undefined') {
+          Swal.fire('Error', 'html2canvas belum dimuat. Silakan refresh halaman.', 'error');
+          return;
+        }
+
+        Swal.fire({ title: 'Generating PDF...', text: 'Menangkap preview dokumen', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+        const previewEl = document.getElementById('previewArea');
+        if (!previewEl) {
+          Swal.fire('Error', 'Area preview tidak ditemukan.', 'error');
+          return;
+        }
+
+        var captureScale = 2;
+        var opt = {
+          scale: captureScale,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+          width: previewEl.scrollWidth,
+          height: previewEl.scrollHeight
+        };
+
+        html2canvas(previewEl, opt).then(function(canvas) {
+          var imgData = canvas.toDataURL('image/png');
+          var pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+          var pdfW = 210;
+          var pdfH = 297;
+
+          var imgW = canvas.width;
+          var imgH = canvas.height;
+          var ratio = imgW / imgH;
+          var renderW = pdfW;
+          var renderH = pdfW / ratio;
+
+          if (renderH > pdfH) {
+            renderH = pdfH;
+            renderW = pdfH * ratio;
+          }
+
+          var offsetX = (pdfW - renderW) / 2;
+          var offsetY = (pdfH - renderH) / 2;
+
+          pdf.addImage(imgData, 'PNG', offsetX, offsetY, renderW, renderH);
+
+          var lampiranEl = document.getElementById('lampiranArea');
+          if (lampiranEl && !lampiranEl.classList.contains('hidden')) {
+            return html2canvas(lampiranEl, opt).then(function(lampCanvas) {
+              var lampImg = lampCanvas.toDataURL('image/png');
+              pdf.addPage();
+              var lw = lampCanvas.width;
+              var lh = lampCanvas.height;
+              var lr = lw / lh;
+              var lrW = pdfW;
+              var lrH = pdfW / lr;
+              if (lrH > pdfH) { lrH = pdfH; lrW = pdfH * lr; }
+              var loX = (pdfW - lrW) / 2;
+              var loY = (pdfH - lrH) / 2;
+              pdf.addImage(lampImg, 'PNG', loX, loY, lrW, lrH);
+              return pdf;
+            });
+          }
+          return pdf;
+        }).then(function(pdf) {
+          var dept = '';
+          var auditee = '';
+          if (previewSource === 'form') {
+            dept = currentDept || 'Dept';
+            auditee = currentAuditee || 'Auditee';
+          } else {
+            var deptEl = document.getElementById('prevDept');
+            var auditeeEl = document.getElementById('prevAuditeeName');
+            dept = deptEl ? deptEl.textContent || 'Dept' : 'Dept';
+            auditee = auditeeEl ? auditeeEl.textContent || 'Auditee' : 'Auditee';
+          }
+          var now = new Date();
+          var dd = String(now.getDate()).padStart(2, '0');
+          var mm = String(now.getMonth() + 1).padStart(2, '0');
+          var fn = dept + '-' + auditee + '-' + dd + mm + now.getFullYear() + '.pdf';
+          pdf.save(fn);
+          Swal.close();
+        }).catch(function(err) {
+          console.error('[Matrika] exportPreviewToPDF error:', err);
+          Swal.fire('Error', 'Gagal generate PDF: ' + err.message, 'error');
+        });
       }
 
     </script>
