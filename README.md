@@ -18,6 +18,7 @@ Confidential/
 │   │   └── AuditContext.jsx     # kategori/auditee/dept/editId/questions
 │   ├── components/
 │   │   ├── Navbar.jsx, ProtectedRoute.jsx, SignaturePad.jsx
+│   │   ├── Sparkles.jsx             # latar bintang berkelip ala hero antigravity.google (login)
 │   │   └── modals/ (NewAudit, ListSign, RegisterSignature, ChangePassword, CropPhoto)
 │   ├── pages/
 │   │   ├── LoginPage.jsx        # port stateLogin

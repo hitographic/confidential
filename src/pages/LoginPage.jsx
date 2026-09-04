@@ -4,6 +4,7 @@ import Swal from 'sweetalert2'
 import { gasApi } from '../api/gasClient'
 import { useAuth } from '../context/AuthContext'
 import RegisterSignatureModal from '../components/modals/RegisterSignatureModal'
+import Sparkles from '../components/Sparkles'
 
 export default function LoginPage() {
   const { login, setUser } = useAuth()
@@ -66,9 +67,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="login-wrapper">
+    <div className="login-wrapper login-hero">
+      <Sparkles />
       <div className="login-card">
-        <img src="./login.png" alt="Confidential" className="login-logo-full" />
+        <div className="login-logo-glow">
+          <img src="./login.png" alt="Confidential" className="login-logo-full" />
+        </div>
         <form onSubmit={onSubmit}>
           <div className="form-group">
             <label><i className="fa-solid fa-fingerprint" style={{ width: 16, color: 'var(--secondary)' }} /> NIK</label>
