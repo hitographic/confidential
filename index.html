@@ -522,6 +522,43 @@ body {
 
 #previewTableBody td:last-child { border-right: none; }
 
+/* --- CAPA PREVIEW (LANDSCAPE MGT-004) --- */
+#capaPreviewArea {
+  background: white;
+  color: black;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 12px;
+  width: 1123px;
+  min-height: 794px;
+  max-height: none;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 16px;
+}
+#capaPreviewArea * { font-family: 'Times New Roman', Times, serif !important; }
+#capaPreviewTableBody td {
+  border-right: 1px solid black;
+  border-bottom: none;
+  border-top: none;
+  padding: 6px;
+  vertical-align: top;
+}
+#capaPreviewTableBody td:last-child { border-right: none; }
+.capa-header-yellow { background: #FFFFCC; }
+#capaNoInput {
+  font-family: 'Times New Roman', Times, serif;
+  font-weight: bold;
+  border: 1px dashed #94a3b8;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 13px;
+  min-width: 220px;
+  text-align: center;
+}
+
 /* --- PHOTO STYLES --- */
 .photo-upload-area { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .photo-thumb { width: 64px; height: 64px; border-radius: 8px; overflow: hidden; position: relative; border: 2px solid rgba(0,0,0,0.1); cursor: pointer; }
@@ -1121,6 +1158,118 @@ body {
   </div>
 </div>
 
+<!-- MODAL: CAPA PREVIEW (MGT-004 LANDSCAPE) -->
+<div id="modalCapaPreview" class="modal-overlay hidden">
+  <div class="modal-content" style="max-width: 1180px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+      <h3>Preview CAPA Internal Audit <span style="font-size:11px; color:var(--text-muted); font-weight:500;">(MGT-004 &bull; Landscape)</span></h3>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button class="btn btn-outline" onclick="exportCapaExcel()" style="font-size: 12px;"><i class="fa-solid fa-file-excel" style="color:#10b981;"></i> Export Excel</button>
+        <button class="btn btn-outline" onclick="exportCapaPDF()" style="font-size: 12px;"><i class="fa-solid fa-file-pdf" style="color:#f43f5e;"></i> Export PDF</button>
+        <button class="btn btn-outline" onclick="closeModal('modalCapaPreview')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 10px 14px;">
+      <label style="font-size: 13px; font-weight: 700;">No :</label>
+      <input type="text" id="capaNoInput" value="..../CAPA/..../....">
+      <span style="font-size: 11px; color: #92400e;">Otomatis dari urutan temuan + kode semester (Halal: IHA-1 Jan–Jun / IHA-2 Jul–Des, kategori lain: KODE-1/KODE-2) + tahun audit. Bisa diedit manual sebelum export.</span>
+    </div>
+
+    <div class="preview-wrapper" style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; background: #f8fafc;">
+      <div id="capaPreviewArea">
+        <div style="border: 2px solid black; display: flex; flex-direction: column; flex-grow: 1; box-sizing: border-box;">
+
+          <!-- CAPA HEADER ROW 1 -->
+          <div style="display: flex; border-bottom: 2px solid black;">
+            <div style="width: 62%; border-right: 1px solid black; padding: 8px; display: flex; align-items: center; justify-content: center; text-align: center; font-weight: bold; font-size: 13px;">
+              PT INDOFOOD CBP SUKSES MAKMUR Tbk<br>
+              DIVISI NOODLE - PABRIK CIBITUNG
+            </div>
+            <div style="width: 38%; padding: 8px; font-weight: bold; font-size: 12px;">
+              <table style="width: 100%; border: none; font-weight: bold;">
+                <tr><td style="border:none; padding: 1px 0; width: 110px;">Kode Form</td><td style="border:none; padding: 1px 0;">: MGT - 004</td></tr>
+                <tr><td style="border:none; padding: 1px 0;">No. Terbitan</td><td style="border:none; padding: 1px 0;">: 2.7</td></tr>
+                <tr><td style="border:none; padding: 1px 0;">Tgl. Efektif</td><td style="border:none; padding: 1px 0;">: 22 Juni 2026</td></tr>
+                <tr><td style="border:none; padding: 1px 0;">Halaman</td><td style="border:none; padding: 1px 0;">: 1 / 1</td></tr>
+              </table>
+            </div>
+          </div>
+
+          <!-- CAPA HEADER ROW 2 -->
+          <div style="display: flex; border-bottom: 2px solid black;">
+            <div style="width: 58%; padding: 10px; display: flex; flex-direction: column; justify-content: center;">
+              <div style="font-weight: bold; font-size: 17px; text-align: center; letter-spacing: 0.02em;">CAPA INTERNAL AUDIT</div>
+              <div style="font-weight: bold; font-size: 13px; text-align: center; margin-top: 6px; font-style: italic;">No : <span id="capaPrevNo">..../CAPA/..../....</span></div>
+            </div>
+            <div style="width: 42%; padding: 8px;" id="capaPreviewCheckboxes"></div>
+          </div>
+
+          <!-- CAPA HEADER ROW 3 -->
+          <div style="padding: 8px 14px; border-bottom: 2px solid black; font-weight: bold; font-size: 13px; display: flex; gap: 40px;">
+            <div>Departemen : <span id="capaPrevDept"></span></div>
+            <div>Tgl. Audit : <span id="capaPrevDate"></span></div>
+          </div>
+
+          <!-- CAPA TABLE -->
+          <div style="flex-grow: 1; display: flex; flex-direction: column;">
+            <table style="width: 100%; border-collapse: collapse; flex-grow: 1;">
+              <colgroup>
+                <col style="width: 24%;">
+                <col style="width: 9%;">
+                <col style="width: 22%;">
+                <col style="width: 13%;">
+                <col style="width: 24%;">
+                <col style="width: 8%;">
+              </colgroup>
+              <thead>
+                <tr class="capa-header-yellow">
+                  <th style="border: 1px solid black; padding: 6px; font-size: 11px;">KETIDAKSESUAIAN<br>( NC )</th>
+                  <th style="border: 1px solid black; padding: 6px; font-size: 11px;">ELEMEN /<br>KLAUSUL *</th>
+                  <th style="border: 1px solid black; padding: 6px; font-size: 11px;">CORRECTION<br><span style="font-weight:normal;">( Tindakan Segera Terhadap NC )</span></th>
+                  <th style="border: 1px solid black; padding: 6px; font-size: 11px;">INDIKASI PENYEBAB<br><span style="font-weight:normal;">( Penyebab Terjadinya NC )</span></th>
+                  <th style="border: 1px solid black; padding: 6px; font-size: 11px;">CORRECTIVE ACTION<br><span style="font-weight:normal;">( Tindakan Menjawab Penyebab NC )</span></th>
+                  <th style="border: 1px solid black; padding: 6px; font-size: 11px;">Target<br>Selesai</th>
+                </tr>
+              </thead>
+              <tbody id="capaPreviewTableBody"></tbody>
+            </table>
+          </div>
+
+          <!-- CAPA FOOTER -->
+          <div style="display: flex; border-top: 2px solid black; padding: 12px 10px 16px;">
+            <div style="flex: 1; font-size: 11px; color: red; font-style: italic;">
+              * Elemen / klausul mengacu ke standard :<br>........................................
+            </div>
+            <div style="flex: 1; text-align: center;">
+              <div style="font-size: 12px;">Auditor</div>
+              <div style="height: 46px;"></div>
+              <div style="font-weight: bold; font-size: 12px; text-decoration: underline;" id="capaPrevAuditor"></div>
+            </div>
+            <div style="flex: 1; text-align: center;">
+              <div style="font-size: 12px;">Auditee</div>
+              <div style="height: 46px;"></div>
+              <div style="font-size: 12px;">____________________</div>
+              <div style="font-size: 12px;">Spv.</div>
+            </div>
+            <div style="flex: 1; text-align: center;">
+              <div style="font-size: 12px;">Diketahui Oleh</div>
+              <div style="height: 46px;"></div>
+              <div style="font-size: 12px;">____________________</div>
+              <div style="font-size: 12px;">Dept. Head</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px;">
+      <button class="btn btn-outline" onclick="closeModal('modalCapaPreview')">Tutup</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: GANTI PASSWORD -->
 <div id="modalChangePassword" class="modal-overlay hidden">
   <div class="modal-content" style="max-width: 420px;">
@@ -1203,6 +1352,7 @@ let currentCropIndex = null;
 let currentCropData = null;
 let previewSource = null; // 'list' or 'form'
 let previewItemId = null;
+let capaCache = { detail: null, findings: [], no: '' };
 
 function saveSessionState() {
   sessionStorage.setItem('matrika_state', JSON.stringify({
@@ -1676,6 +1826,7 @@ function renderList() {
 
         actionHtml = `
             ${primaryButton}
+            <button class="btn btn-outline" style="font-size:12px; color:#ea580c; border-color:rgba(234,88,12,0.35);" onclick="openCapaPreview('${item.id}')" title="CAPA Internal Audit (MGT-004)"><i class="fa-solid fa-clipboard-check"></i> CAPA</button>
             ${signButtons}
             <button class="btn btn-outline" style="font-size:12px;" onclick="exportItemPDF('${item.id}')"><i class="fa-solid fa-file-pdf" style="color:#f43f5e;"></i> PDF</button>
             <button class="btn btn-outline" style="font-size:12px;" onclick="exportItemExcel('${item.id}')"><i class="fa-solid fa-file-excel" style="color:#10b981;"></i> Excel</button>
@@ -3440,6 +3591,498 @@ function exportItemExcel(id) {
   }).catch(err => {
        Swal.fire('Error', 'Gagal menyiapkan Excel.', 'error');
   });
+}
+
+/* ================= CAPA INTERNAL AUDIT (MGT-004, LANDSCAPE) =================
+   Sumber data: hanya temuan (kategori Minor/Major/Kritis) dari checklist
+   "PENGAMATAN INTERNAL AUDIT". Yang Conformance (C) tidak ikut.
+   Format No otomatis: "<1 atau 1-N>/CAPA/<KODE>/<TAHUN>"
+     - angka = urutan temuan dalam dokumen ini (1..N)
+     - KODE Halal: IHA-1 (audit Jan-Jun) / IHA-2 (Jul-Des);
+       kategori lain: <KATEGORI>-1 / <KATEGORI>-2 mengikuti semester yang sama
+     - TAHUN = tahun Tgl. Audit
+   Contoh: 3 temuan Halal Agustus 2026 -> "1-3/CAPA/IHA-2/2026".
+   UBAH DI SINI jika aturan nomor perlu disesuaikan. */
+function getCapaFindings(checklistData) {
+  return (checklistData || []).filter(function(row) {
+    if (row.type == 1 || row.type == 2 || row.type == 3) return false;
+    var kat = String(row.kategoriVal || '').trim();
+    if (!kat || kat === '-' || kat.toUpperCase() === 'C') return false;
+    var k = kat.toLowerCase();
+    if (k !== 'minor' && k !== 'major' && k !== 'kritis') return false;
+    if (!row.hasilPengamatan || String(row.hasilPengamatan).trim() === '') return false;
+    return true;
+  }).map(function(row) {
+    return { nc: String(row.hasilPengamatan || '').trim(), klausul: String(row.kriteria || '-').trim() || '-' };
+  });
+}
+
+function capaSemesterCode(kategori, tanggalObj) {
+  var dt = (tanggalObj instanceof Date) ? tanggalObj : new Date(tanggalObj || new Date());
+  var sem = (dt.getMonth() <= 5) ? '1' : '2'; // Jan-Jun=1, Jul-Des=2
+  var kat = String(kategori || '').trim().toUpperCase();
+  var base = (kat === 'HALAL' || kat === '') ? 'IHA' : kat;
+  return base + '-' + sem;
+}
+
+function capaSuggestedNo(nFindings, tanggalObj, kategori) {
+  var dt = (tanggalObj instanceof Date) ? tanggalObj : new Date(tanggalObj || new Date());
+  var kode = capaSemesterCode(kategori, dt);
+  var yr = dt.getFullYear();
+  if (!nFindings || nFindings <= 1) return '1/CAPA/' + kode + '/' + yr;
+  return '1-' + nFindings + '/CAPA/' + kode + '/' + yr;
+}
+
+function capaCheckboxHtml(kategori) {
+  var cat = kategori || '';
+  function box(val) {
+    return '<div class="check-box">' + (cat === val ? 'V' : '&nbsp;') + '</div>';
+  }
+  return '<table style="width:100%; border:none; font-weight:bold; font-size: 12px;">'
+    + '<tr><td style="border:none; padding:2px;">' + box('Halal') + ' Halal</td>'
+    + '<td style="border:none; padding:2px;">' + box('SMK3') + ' SMK3</td>'
+    + '<td style="border:none; padding:2px;"><div class="check-box" style="width:40px;">&nbsp;</div> .........</td></tr>'
+    + '<tr><td style="border:none; padding:2px;">' + box('ISO') + ' ISO</td>'
+    + '<td style="border:none; padding:2px;">' + box('SML') + ' SML</td><td style="border:none;"></td></tr>'
+    + '<tr><td style="border:none; padding:2px;">' + box('FSSC') + ' FSSC</td>'
+    + '<td style="border:none; padding:2px;">' + box('SME') + ' SME</td><td style="border:none;"></td></tr>'
+    + '</table>';
+}
+
+function openCapaPreview(id) {
+  Swal.fire({ title: 'Memuat CAPA...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+  fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'getDetail', id: id }) })
+    .then(res => res.json()).then(res => {
+      if (!res.success) { Swal.fire('Gagal', res.message, 'error'); return; }
+      var d = res.data;
+      var findings = getCapaFindings(d.checklistData);
+      if (findings.length === 0) {
+        Swal.fire('Tidak ada temuan', 'Data ini tidak memiliki temuan Minor/Major/Kritis sehingga CAPA (MGT-004) tidak dapat dibuat.', 'info');
+        return;
+      }
+      Swal.close();
+      var dt = new Date(d.tanggal || new Date());
+      var months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+      var dateStr = dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
+
+      var no = capaSuggestedNo(findings.length, dt, d.kategori);
+      capaCache = { detail: d, findings: findings, no: no };
+
+      document.getElementById('capaPreviewCheckboxes').innerHTML = capaCheckboxHtml(d.kategori);
+      document.getElementById('capaPrevDept').textContent = d.departemen || '-';
+      document.getElementById('capaPrevDate').textContent = dateStr;
+      document.getElementById('capaPrevAuditor').textContent = d.auditorName || currentUser.nama || '-';
+
+      var noInput = document.getElementById('capaNoInput');
+      noInput.value = no;
+      document.getElementById('capaPrevNo').textContent = no;
+      noInput.oninput = function() {
+        document.getElementById('capaPrevNo').textContent = this.value || '..../CAPA/..../....';
+        capaCache.no = this.value;
+      };
+
+      var tbody = document.getElementById('capaPreviewTableBody');
+      tbody.innerHTML = '';
+      findings.forEach(function(f, idx) {
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td>' + (idx + 1) + '. ' + escapeHtml(f.nc) + '</td>'
+          + '<td style="text-align:center;">' + escapeHtml(f.klausul) + '</td>'
+          + '<td style="min-height:54px;"></td><td></td><td></td><td></td>';
+        tbody.appendChild(tr);
+      });
+      // Isi baris kosong agar tabel terlihat proporsional (min 3 baris)
+      for (var e = findings.length; e < 3; e++) {
+        var trE = document.createElement('tr');
+        trE.innerHTML = '<td style="min-height:54px;">&nbsp;</td><td></td><td></td><td></td><td></td><td></td>';
+        tbody.appendChild(trE);
+      }
+
+      showModal('modalCapaPreview');
+    }).catch(err => {
+      console.error('[Matrika] openCapaPreview error:', err);
+      Swal.fire('Error', 'Gagal memuat data CAPA.', 'error');
+    });
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function getCapaExportNo() {
+  var input = document.getElementById('capaNoInput');
+  var no = (input && input.value ? input.value.trim() : '') || capaCache.no;
+  if (!no && capaCache.detail) {
+    var dt = new Date(capaCache.detail.tanggal || new Date());
+    no = capaSuggestedNo(capaCache.findings.length, dt, capaCache.detail.kategori);
+  }
+  return no || '..../CAPA/..../....';
+}
+
+function exportCapaExcel() {
+  var d = capaCache.detail;
+  var findings = capaCache.findings || [];
+  if (!d || findings.length === 0) return Swal.fire('Kosong', 'Buka preview CAPA dari card list terlebih dahulu.', 'info');
+  var no = getCapaExportNo();
+  capaCache.no = no;
+  document.getElementById('capaPrevNo').textContent = no;
+
+  Swal.fire({ title: 'Menyiapkan Excel CAPA...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+  try {
+    var dt = new Date(d.tanggal || new Date());
+    var months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    var dateStr = dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
+
+    var workbook = new ExcelJS.Workbook();
+    var ws = workbook.addWorksheet("CAPA");
+    ws.pageSetup = { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 1 };
+    ws.pageMargins = { left: 0.19685, right: 0.19685, top: 0.3937, bottom: 0.19685, header: 0.2, footer: 0.2 };
+
+    var widths = { A: 2.66, B: 10.66, C: 25.33, D: 13.33, E: 2.66, F: 35.33, G: 2.66, H: 18.33, I: 8.43, J: 2.66, K: 38.33, L: 12.33, M: 14 };
+    Object.keys(widths).forEach(function(col) { ws.getColumn(col).width = widths[col]; });
+
+    var bDouble = { style: 'double' };
+    var bThin = { style: 'thin' };
+    var bMed = { style: 'medium' };
+    var yellowFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFCC' } };
+    var TNR = function(sz, bold, italic, color) {
+      return { name: 'Times New Roman', size: sz, bold: !!bold, italic: !!italic, color: color ? { argb: color } : undefined };
+    };
+
+    function box(startRow, endRow, startCol, endCol, outer, vLines) {
+      for (var r = startRow; r <= endRow; r++) {
+        for (var c = startCol; c <= endCol; c++) {
+          var cell = ws.getRow(r).getCell(c);
+          var b = cell.border || {};
+          if (r === startRow) b.top = { style: outer };
+          if (r === endRow) b.bottom = { style: outer };
+          if (c === startCol) b.left = { style: outer };
+          if (c === endCol) b.right = { style: outer };
+          (vLines || []).forEach(function(v) {
+            if (c === v) b.right = { style: 'thin' };
+            if (c === v + 1) b.left = { style: 'thin' };
+          });
+          cell.border = b;
+        }
+      }
+    }
+
+    [1,6,7,11,13,16].forEach(function(r) { ws.getRow(r).height = r === 1 ? 10 : (r === 13 || r === 16 ? 10 : 12); });
+    [2,3,4,5].forEach(function(r) { ws.getRow(r).height = 15.75; });
+    [8,9,10].forEach(function(r) { ws.getRow(r).height = 18; });
+    ws.getRow(12).height = 21;
+    ws.getRow(14).height = 18; ws.getRow(15).height = 18;
+
+    // Header perusahaan + info form
+    ws.mergeCells('A2:H2');
+    var cA2 = ws.getCell('A2');
+    cA2.value = "PT  INDOFOOD  CBP  SUKSES  MAKMUR  Tbk";
+    cA2.font = TNR(12, true); cA2.alignment = { horizontal: 'centerContinuous', vertical: 'center' };
+    ws.mergeCells('A3:H3');
+    var cA3 = ws.getCell('A3');
+    cA3.value = "DIVISI  NOODLE  -  PABRIK  CIBITUNG";
+    cA3.font = TNR(12, true); cA3.alignment = { horizontal: 'centerContinuous', vertical: 'center' };
+    var formInfo = [["Kode  Form", ":    MGT - 004"], ["No. Terbitan", ":    2.7"], ["Tgl. Efektif", ":    22  Juni  2026"], ["Halaman", ":    1 / 1"]];
+    formInfo.forEach(function(fi, i) {
+      var r = 2 + i;
+      ws.mergeCells('I' + r + ':J' + r);
+      ws.getCell('I' + r).value = fi[0];
+      ws.getCell('I' + r).font = TNR(11, true);
+      ws.getCell('I' + r).alignment = { vertical: 'center' };
+      ws.mergeCells('K' + r + ':M' + r);
+      ws.getCell('K' + r).value = fi[1];
+      ws.getCell('K' + r).font = TNR(11, true);
+      ws.getCell('K' + r).alignment = { vertical: 'center' };
+    });
+    box(2, 5, 1, 13, 'double', [8]);
+
+    // Judul + No + checklist kategori
+    ws.mergeCells('A8:H9');
+    var cA8 = ws.getCell('A8');
+    cA8.value = "CAPA  INTERNAL  AUDIT";
+    cA8.font = TNR(18, true); cA8.alignment = { horizontal: 'center', vertical: 'center' };
+    ws.mergeCells('A10:H10');
+    var cA10 = ws.getCell('A10');
+    cA10.value = "No  :  " + no;
+    cA10.font = TNR(12, false); cA10.alignment = { horizontal: 'center', vertical: 'center' };
+
+    var cat = d.kategori || '';
+    function tick(v) { return cat === v ? '☑' : '☐'; }
+    ws.getCell('J8').value = tick('Halal') + ' Halal';
+    ws.getCell('L8').value = tick('SMK3') + ' SMK3';
+    ws.getCell('M8').value = '☐ ........';
+    ws.getCell('J9').value = tick('ISO') + ' ISO';
+    ws.getCell('L9').value = tick('SML') + ' SML';
+    ws.getCell('J10').value = tick('FSSC') + ' FSSC';
+    ws.getCell('L10').value = tick('SME') + ' SME';
+    ['J8','L8','M8','J9','L9','J10','L10'].forEach(function(a) {
+      ws.getCell(a).font = TNR(12, false);
+      ws.getCell(a).alignment = { vertical: 'center' };
+    });
+    box(7, 12, 1, 13, 'double');
+
+    // Departemen & tanggal
+    ws.mergeCells('B12:E12');
+    ws.getCell('B12').value = "Departemen  : " + (d.departemen || '-');
+    ws.getCell('B12').font = TNR(11, false);
+    ws.getCell('B12').alignment = { vertical: 'center' };
+    ws.mergeCells('F12:I12');
+    ws.getCell('F12').value = "Tgl. Audit  : " + dateStr;
+    ws.getCell('F12').font = TNR(11, false);
+    ws.getCell('F12').alignment = { vertical: 'center' };
+
+    // Header tabel (kuning)
+    ws.mergeCells('A14:C14'); ws.getCell('A14').value = "KETIDAKSESUAIAN";
+    ws.mergeCells('A15:C15'); ws.getCell('A15').value = "( NC )";
+    ws.getCell('D14').value = "ELEMEN /"; ws.getCell('D15').value = "KLAUSUL *";
+    ws.mergeCells('E14:F14'); ws.getCell('E14').value = "CORRECTION";
+    ws.mergeCells('E15:F15'); ws.getCell('E15').value = "( Tindakan  Segera  Terhadap  NC )";
+    ws.mergeCells('G14:H14'); ws.getCell('G14').value = "INDIKASI  PENYEBAB";
+    ws.mergeCells('G15:H15'); ws.getCell('G15').value = "( Penyebab  Terjadinya  NC )";
+    ws.mergeCells('J14:K14'); ws.getCell('J14').value = "CORRECTIVE  ACTION";
+    ws.mergeCells('J15:K15'); ws.getCell('J15').value = "( Tindakan  Menjawab  Penyebab  NC )";
+    ws.getCell('L14').value = "Target"; ws.getCell('L15').value = "Selesai";
+    ['A14','A15','D14','D15','E14','E15','G14','G15','J14','J15','L14','L15'].forEach(function(a) {
+      var cell = ws.getCell(a);
+      cell.fill = yellowFill;
+      cell.alignment = { horizontal: 'center', vertical: 'center', wrapText: true };
+    });
+    ws.getCell('A14').font = TNR(12, true); ws.getCell('D14').font = TNR(12, true);
+    ws.getCell('E14').font = TNR(12, true); ws.getCell('G14').font = TNR(12, true);
+    ws.getCell('J14').font = TNR(12, true); ws.getCell('L14').font = TNR(12, true);
+    ws.getCell('A15').font = TNR(11, true); ws.getCell('D15').font = TNR(11, true);
+    ws.getCell('E15').font = TNR(11, true); ws.getCell('G15').font = TNR(11, true);
+    ws.getCell('J15').font = TNR(11, true); ws.getCell('L15').font = TNR(12, true);
+    // Batas header tabel
+    for (var hc = 1; hc <= 12; hc++) {
+      var h14 = ws.getRow(14).getCell(hc);
+      h14.border = Object.assign({}, h14.border, { top: bThin });
+      var h15 = ws.getRow(15).getCell(hc);
+      h15.border = Object.assign({}, h15.border, { bottom: bMed });
+    }
+
+    // Body: tiap temuan = blok 7 baris (ruang tulis tangan), min sampai baris 38
+    var BLOCK = 7, bodyStart = 17, minEnd = 38;
+    var needEnd = bodyStart + findings.length * BLOCK - 1;
+    var bodyEnd = Math.max(minEnd, needEnd);
+    for (var br = bodyStart; br <= bodyEnd; br++) ws.getRow(br).height = 16.5;
+
+    findings.forEach(function(f, idx) {
+      var s = bodyStart + idx * BLOCK, e = s + BLOCK - 1;
+      ws.mergeCells('B' + s + ':C' + e);
+      var nc = ws.getCell('B' + s);
+      nc.value = (idx + 1) + ". " + f.nc;
+      nc.font = TNR(11, false); nc.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
+      ws.mergeCells('D' + s + ':D' + e);
+      var kl = ws.getCell('D' + s);
+      kl.value = f.klausul;
+      kl.font = TNR(11, false); kl.alignment = { horizontal: 'center', vertical: 'top', wrapText: true };
+      ws.mergeCells('E' + s + ':F' + e);
+      ws.mergeCells('G' + s + ':I' + e);
+      ws.mergeCells('J' + s + ':K' + e);
+      ws.mergeCells('L' + s + ':L' + e);
+      ws.mergeCells('A' + s + ':A' + e);
+    });
+    // Batas vertikal + luar body
+    box(bodyStart, bodyEnd, 1, 12, 'double', [3, 4, 6, 9, 11]);
+
+    // Footer tanda tangan
+    var fr = bodyEnd + 1;
+    ws.getRow(fr).height = 16;
+    ws.mergeCells('B' + fr + ':E' + fr);
+    ws.getCell('B' + fr).value = "* Elemen / klausul  mengacu  ke  standard  :";
+    ws.getCell('B' + fr).font = { name: 'Times New Roman', size: 11, italic: true, color: { argb: 'FFFF0000' } };
+    ws.mergeCells('F' + fr + ':G' + fr);
+    ws.getCell('F' + fr).value = "Auditor";
+    ws.getCell('F' + fr).font = TNR(12, false); ws.getCell('F' + fr).alignment = { horizontal: 'center', vertical: 'center' };
+    ws.mergeCells('H' + fr + ':I' + fr);
+    ws.getCell('H' + fr).value = "Auditee";
+    ws.getCell('H' + fr).font = TNR(12, false); ws.getCell('H' + fr).alignment = { horizontal: 'center', vertical: 'center' };
+    ws.mergeCells('K' + fr + ':L' + fr);
+    ws.getCell('K' + fr).value = "Diketahui  Oleh";
+    ws.getCell('K' + fr).font = TNR(12, false); ws.getCell('K' + fr).alignment = { horizontal: 'center', vertical: 'center' };
+
+    ws.getRow(fr + 1).height = 16;
+    ws.mergeCells('B' + (fr + 1) + ':E' + (fr + 1));
+    ws.getCell('B' + (fr + 1)).value = "   ......................................";
+    ws.getCell('B' + (fr + 1)).font = { name: 'Times New Roman', size: 11, italic: true, color: { argb: 'FFFF0000' } };
+
+    ws.getRow(fr + 2).height = 12;
+    ws.getRow(fr + 3).height = 16;
+    ws.mergeCells('F' + (fr + 3) + ':G' + (fr + 3));
+    ws.getCell('F' + (fr + 3)).value = d.auditorName || currentUser.nama || '';
+    ws.getCell('F' + (fr + 3)).font = TNR(12, true);
+    ws.getCell('F' + (fr + 3)).alignment = { horizontal: 'center', vertical: 'center' };
+    ws.mergeCells('H' + (fr + 3) + ':I' + (fr + 3));
+    ws.getCell('H' + (fr + 3)).value = "                                   ";
+    ws.getCell('H' + (fr + 3)).font = TNR(12, true);
+    ws.getCell('H' + (fr + 3)).alignment = { horizontal: 'center', vertical: 'center' };
+    ws.mergeCells('K' + (fr + 3) + ':L' + (fr + 3));
+    ws.getCell('K' + (fr + 3)).value = "                                   ";
+    ws.getCell('K' + (fr + 3)).font = TNR(12, true);
+    ws.getCell('K' + (fr + 3)).alignment = { horizontal: 'center', vertical: 'center' };
+
+    ws.getRow(fr + 4).height = 16;
+    ws.mergeCells('H' + (fr + 4) + ':I' + (fr + 4));
+    ws.getCell('H' + (fr + 4)).value = "Spv.";
+    ws.getCell('H' + (fr + 4)).font = TNR(12, false);
+    ws.getCell('H' + (fr + 4)).alignment = { horizontal: 'center', vertical: 'center' };
+    ws.mergeCells('K' + (fr + 4) + ':L' + (fr + 4));
+    ws.getCell('K' + (fr + 4)).value = "Dept. Head";
+    ws.getCell('K' + (fr + 4)).font = TNR(12, false);
+    ws.getCell('K' + (fr + 4)).alignment = { horizontal: 'center', vertical: 'center' };
+
+    box(fr, fr + 4, 1, 12, 'double');
+
+    workbook.xlsx.writeBuffer().then(function(buffer) {
+      Swal.close();
+      var blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      var url = window.URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      var safeDept = String(d.departemen || 'Dept').replace(/[\\/:*?"<>|]/g, '-');
+      a.download = 'CAPA_' + safeDept + '_' + no.replace(/\//g, '-') + '.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    }).catch(function(err) {
+      Swal.fire('Error', 'Gagal membuat Excel: ' + err.message, 'error');
+    });
+  } catch (err) {
+    Swal.fire('Error', 'Gagal membuat Excel: ' + err.message, 'error');
+  }
+}
+
+function exportCapaPDF() {
+  var d = capaCache.detail;
+  var findings = capaCache.findings || [];
+  if (!d || findings.length === 0) return Swal.fire('Kosong', 'Buka preview CAPA dari card list terlebih dahulu.', 'info');
+  var no = getCapaExportNo();
+  capaCache.no = no;
+  document.getElementById('capaPrevNo').textContent = no;
+
+  try {
+    var pdf = new jspdf.jsPDF('l', 'mm', 'a4');
+    var pageW = 297, pageH = 210;
+    var months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    var dt = new Date(d.tanggal || new Date());
+    var dateStr = dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
+
+    var bx = 8, by = 8, bw = pageW - 16, bh = pageH - 16;
+    pdf.setDrawColor(0); pdf.setLineWidth(0.5);
+    pdf.rect(bx, by, bw, bh);
+
+    var cx = bx, cy = by, cw = bw;
+    // Row 1
+    var r1H = 20, r1LW = cw * 0.62;
+    pdf.setLineWidth(0.3);
+    pdf.rect(cx, cy, r1LW, r1H);
+    pdf.line(cx + r1LW, cy, cx + r1LW, cy + r1H);
+    pdf.setFont('times', 'bold'); pdf.setFontSize(13);
+    pdf.text('PT INDOFOOD CBP SUKSES MAKMUR Tbk', cx + r1LW / 2, cy + 7, { align: 'center' });
+    pdf.setFontSize(11);
+    pdf.text('DIVISI NOODLE - PABRIK CIBITUNG', cx + r1LW / 2, cy + 14, { align: 'center' });
+    pdf.setFontSize(10);
+    var fiX = cx + r1LW + 3, fiV = cx + r1LW + 28;
+    pdf.text('Kode Form', fiX, cy + 5); pdf.text(': MGT - 004', fiV, cy + 5);
+    pdf.text('No. Terbitan', fiX, cy + 9.5); pdf.text(': 2.7', fiV, cy + 9.5);
+    pdf.text('Tgl. Efektif', fiX, cy + 14); pdf.text(': 22 Juni 2026', fiV, cy + 14);
+    pdf.text('Halaman', fiX, cy + 18); pdf.text(': 1 / 1', fiV, cy + 18);
+    pdf.line(bx, cy + r1H, bx + cw, cy + r1H);
+    cy += r1H;
+
+    // Row 2: judul + No + checklist
+    var r2H = 24, r2LW = cw * 0.58;
+    pdf.rect(cx, cy, r2LW, r2H);
+    pdf.line(cx + r2LW, cy, cx + r2LW, cy + r2H);
+    pdf.setFont('times', 'bold'); pdf.setFontSize(14);
+    pdf.text('CAPA INTERNAL AUDIT', cx + r2LW / 2, cy + 9, { align: 'center' });
+    pdf.setFontSize(11);
+    pdf.text('No : ' + no, cx + r2LW / 2, cy + 17, { align: 'center' });
+    var cbX = cx + r2LW + 5, cbY = cy + 7;
+    var cats = [
+      { label: 'Halal', val: 'Halal', x: cbX, y: cbY },
+      { label: 'SMK3', val: 'SMK3', x: cbX + 55, y: cbY },
+      { label: 'ISO', val: 'ISO', x: cbX, y: cbY + 8 },
+      { label: 'SML', val: 'SML', x: cbX + 55, y: cbY + 8 },
+      { label: 'FSSC', val: 'FSSC', x: cbX, y: cbY + 16 },
+      { label: 'SME', val: 'SME', x: cbX + 55, y: cbY + 16 }
+    ];
+    cats.forEach(function(c) {
+      pdf.setFont('times', 'bold'); pdf.setFontSize(9);
+      pdf.rect(c.x, c.y - 3.5, 3.5, 3.5);
+      if ((d.kategori || '') === c.val) pdf.text('V', c.x + 0.4, c.y);
+      pdf.setFont('times', 'normal');
+      pdf.text(c.label, c.x + 5, c.y);
+    });
+    pdf.line(bx, cy + r2H, bx + cw, cy + r2H);
+    cy += r2H;
+
+    // Row 3
+    var r3H = 9;
+    pdf.rect(cx, cy, cw, r3H);
+    pdf.setFont('times', 'bold'); pdf.setFontSize(10);
+    pdf.text('Departemen : ' + (d.departemen || '-'), cx + 4, cy + 6);
+    pdf.text('Tgl. Audit : ' + dateStr, cx + 110, cy + 6);
+    pdf.line(bx, cy + r3H, bx + cw, cy + r3H);
+    cy += r3H;
+
+    // Header tabel
+    var thH = 12;
+    pdf.setFillColor(255, 255, 204);
+    pdf.rect(cx, cy, cw, thH, 'FD');
+    var colW = [cw * 0.24, cw * 0.09, cw * 0.23, cw * 0.12, cw * 0.24, cw * 0.08];
+    var colX = [cx];
+    for (var ci = 0; ci < colW.length - 1; ci++) colX.push(colX[ci] + colW[ci]);
+    pdf.setFont('times', 'bold'); pdf.setFontSize(8);
+    var heads = ['KETIDAKSESUAIAN (NC)', 'ELEMEN / KLAUSUL', 'CORRECTION', 'INDIKASI PENYEBAB', 'CORRECTIVE ACTION', 'Target Selesai'];
+    for (ci = 0; ci < heads.length; ci++) {
+      var hl = pdf.splitTextToSize(heads[ci], colW[ci] - 3);
+      pdf.text(hl, colX[ci] + colW[ci] / 2, cy + 4, { align: 'center' });
+      if (ci < heads.length - 1) pdf.line(colX[ci + 1], cy, colX[ci + 1], cy + thH);
+    }
+    cy += thH;
+
+    // Isi temuan
+    var dataY = cy;
+    pdf.setFont('times', 'normal'); pdf.setFontSize(9);
+    findings.forEach(function(f, idx) {
+      if (dataY > pageH - 52) return;
+      var ncLines = pdf.splitTextToSize((idx + 1) + '. ' + f.nc, colW[0] - 4);
+      var rowH = Math.max(16, ncLines.length * 4.2 + 6);
+      pdf.text(ncLines, colX[0] + 2, dataY + 4);
+      pdf.text(String(f.klausul || '-'), colX[1] + colW[1] / 2, dataY + 4, { align: 'center' });
+      for (var cj = 0; cj < colX.length - 1; cj++) pdf.line(colX[cj + 1], dataY, colX[cj + 1], dataY + rowH);
+      dataY += rowH;
+    });
+    pdf.line(cx, dataY, cx + cw, dataY);
+
+    // Footer
+    var sigY = pageH - 42;
+    pdf.line(cx, sigY, cx + cw, sigY);
+    pdf.setFont('times', 'italic'); pdf.setFontSize(8);
+    pdf.setTextColor(255, 0, 0);
+    pdf.text('* Elemen / klausul mengacu ke standard : ........................................', cx + 3, sigY + 6);
+    pdf.setTextColor(0, 0, 0);
+    pdf.setFont('times', 'normal'); pdf.setFontSize(10);
+    var fx = [cx + cw * 0.32, cx + cw * 0.58, cx + cw * 0.84];
+    pdf.text('Auditor', fx[0], sigY + 6, { align: 'center' });
+    pdf.text('Auditee', fx[1], sigY + 6, { align: 'center' });
+    pdf.text('Diketahui Oleh', fx[2], sigY + 6, { align: 'center' });
+    pdf.setFont('times', 'bold');
+    pdf.text(String(d.auditorName || currentUser.nama || '-'), fx[0], sigY + 26, { align: 'center' });
+    pdf.setFont('times', 'normal'); pdf.setFontSize(9);
+    pdf.text('____________________', fx[1], sigY + 26, { align: 'center' });
+    pdf.text('Spv.', fx[1], sigY + 31, { align: 'center' });
+    pdf.text('____________________', fx[2], sigY + 26, { align: 'center' });
+    pdf.text('Dept. Head', fx[2], sigY + 31, { align: 'center' });
+
+    var safeDept = String(d.departemen || 'Dept').replace(/[\\/:*?"<>|]/g, '-');
+    pdf.save('CAPA_' + safeDept + '_' + no.replace(/\//g, '-') + '.pdf');
+  } catch (e) {
+    console.error('[Matrika] exportCapaPDF error:', e);
+    Swal.fire('Error', 'Gagal generate PDF: ' + e.message, 'error');
+  }
 }
 
 function exportItemPDF(id) {
