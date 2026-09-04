@@ -6,6 +6,9 @@ import react from '@vitejs/plugin-react'
 // lalu isi VITE_GAS_URL dengan URL Web App (/exec) dari Apps Script.
 export default defineConfig({
   plugins: [react()],
+  // base relatif agar hasil build jalan di hosting apapun:
+  // GitHub Pages (…/confidential/), Vercel, Netlify, dsb.
+  base: './',
   server: {
     port: 5173,
     host: true,
