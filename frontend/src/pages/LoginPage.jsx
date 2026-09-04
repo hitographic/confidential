@@ -68,7 +68,7 @@ export default function LoginPage() {
   return (
     <div className="login-wrapper">
       <div className="login-card">
-        <img src="./logo-login.png" alt="Confidential" className="login-logo-full" />
+        <img src="./login.png" alt="Confidential" className="login-logo-full" />
         <form onSubmit={onSubmit}>
           <div className="form-group">
             <label><i className="fa-solid fa-fingerprint" style={{ width: 16, color: 'var(--secondary)' }} /> NIK</label>
