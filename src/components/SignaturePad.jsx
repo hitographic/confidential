@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import SignatureCropModal from './modals/SignatureCropModal'
 
 /**
  * Canvas tanda tangan — pengganti setupCanvas()/clearCanvas()/getCroppedDataURL().
@@ -14,6 +15,7 @@ export default function SignaturePad({
   const canvasRef = useRef(null)
   const [color, setColor] = useState(extColor || '#000000')
   const [thickness, setThickness] = useState(extThickness || 3)
+  const [pendingSrc, setPendingSrc] = useState(null)
   const drawing = useRef(false)
   const lastPos = useRef(null)
 
@@ -127,12 +129,26 @@ export default function SignaturePad({
 
   const loadImage = (dataUrl) => {
     const canvas = canvasRef.current
+    if (!canvas) return
     const ctx = canvas.getContext('2d')
     const rect = canvas.getBoundingClientRect()
+    const dpr = window.devicePixelRatio || 1
     const img = new Image()
     img.onload = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      ctx.drawImage(img, 0, 0, rect.width, height)
+      // Gambar dengan mode contain + center agar tidak gepeng,
+      // background transparan tetap terjaga (hasil enhance).
+      ctx.save()
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx.clearRect(0, 0, rect.width, height)
+      const cw = rect.width
+      const ch = height
+      const scale = Math.min(cw / img.width, ch / img.height)
+      const dw = img.width * scale
+      const dh = img.height * scale
+      const dx = (cw - dw) / 2
+      const dy = (ch - dh) / 2
+      ctx.drawImage(img, dx, dy, dw, dh)
+      ctx.restore()
     }
     img.src = dataUrl
   }
@@ -165,13 +181,13 @@ export default function SignaturePad({
         <input type="range" min="1" max="6" value={thickness} style={{ width: 60, cursor: 'pointer' }}
           onChange={(e) => setThickness(Number(e.target.value))} />
         <div style={{ flexGrow: 1 }} />
-        <label style={{ cursor: 'pointer', color: 'var(--secondary)', margin: 0, fontSize: 15 }} title="Upload Gambar TTD">
+        <label style={{ cursor: 'pointer', color: 'var(--secondary)', margin: 0, fontSize: 15 }} title="Upload & atur tanda tangan (crop + enhance)">
           <i className="fa-solid fa-image" />
           <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => {
             const f = e.target.files?.[0]
             if (!f) return
             const r = new FileReader()
-            r.onload = (ev) => loadImage(ev.target.result)
+            r.onload = (ev) => setPendingSrc(ev.target.result)
             r.readAsDataURL(f)
             e.target.value = ''
           }} />
@@ -190,6 +206,13 @@ export default function SignaturePad({
           onTouchStart={start} onTouchMove={move} onTouchEnd={end}
         />
       </div>
+      {pendingSrc && (
+        <SignatureCropModal
+          src={pendingSrc}
+          onCancel={() => setPendingSrc(null)}
+          onApply={(url) => { loadImage(url); setPendingSrc(null) }}
+        />
+      )}
     </div>
   )
 }
