@@ -131,6 +131,16 @@ function logAuditTrail(action, nik, ipAddress, targetId, dataHash) {
   sheet.appendRow([new Date(), action, nik, ipAddress || "Unknown", targetId, dataHash || ""]);
 }
 
+// --- Helper hash password (sheet: user, kolom B) ---
+// Format tersimpan: hex SHA-256 lowercase 64 char, mis. hashSHA256("P@ssw0rd!")
+function isSHA256Hash(s) {
+  return /^[a-f0-9]{64}$/i.test(String(s || '').trim());
+}
+
+function hashPassword(pw) {
+  return hashSHA256(String(pw || '').trim());
+}
+
 function handleRegisterSignature(nik, signatureData, pin) {
   try {
     const sheet = getSheet("signatures_db");
@@ -187,11 +197,23 @@ function handleLogin(nik, password) {
     const userSheet = getSheet("user");
     if (!userSheet) return { success: false, message: "Sheet 'user' tidak ditemukan." };
     
+    const input = String(password || '').trim();
+    const inputHash = hashPassword(input);
     const data = userSheet.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
-      if (String(data[i][0]).trim() === String(nik).trim() && String(data[i][1]).trim() === String(password).trim()) {
-        const role = data[i][3] ? String(data[i][3]).trim() : '';
-        return { success: true, nama: String(data[i][2]).trim(), role: role, message: "Login Berhasil!" };
+      if (String(data[i][0]).trim() === String(nik).trim()) {
+        const stored = String(data[i][1]).trim();
+        const ok = (stored === input) || (stored.toLowerCase() === inputHash.toLowerCase());
+        if (ok) {
+          // Auto-migrasi: jika masih plaintext, simpan sebagai hash agar
+          // sheet user tidak lagi berisi password asli.
+          if (!isSHA256Hash(stored)) {
+            try { userSheet.getRange(i + 1, 2).setValue(inputHash); } catch (e) {}
+          }
+          const role = data[i][3] ? String(data[i][3]).trim() : '';
+          return { success: true, nama: String(data[i][2]).trim(), role: role, message: "Login Berhasil!" };
+        }
+        return { success: false, message: "NIK atau Password salah!" };
       }
     }
     return { success: false, message: "NIK atau Password salah!" };
@@ -501,13 +523,19 @@ function handleChangePassword(nik, oldPassword, newPassword) {
     const userSheet = getSheet("user");
     if (!userSheet) return { success: false, message: "Sheet 'user' tidak ditemukan." };
     
+    const oldInput = String(oldPassword || '').trim();
+    const oldHash = hashPassword(oldInput);
+    const newHash = hashPassword(newPassword);
     const data = userSheet.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
       if (String(data[i][0]).trim() === String(nik).trim()) {
-        if (String(data[i][1]).trim() !== String(oldPassword).trim()) {
+        const stored = String(data[i][1]).trim();
+        const ok = (stored === oldInput) || (stored.toLowerCase() === oldHash.toLowerCase());
+        if (!ok) {
           return { success: false, message: "Password lama salah!" };
         }
-        userSheet.getRange(i + 1, 2).setValue(newPassword);
+        // Simpan SELALU sebagai hash SHA-256 ke sheet user kolom B
+        userSheet.getRange(i + 1, 2).setValue(newHash);
         return { success: true, message: "Password berhasil diubah!" };
       }
     }
@@ -515,6 +543,22 @@ function handleChangePassword(nik, oldPassword, newPassword) {
   } catch (error) {
     return { success: false, message: "Error sistem: " + error.message };
   }
+}
+
+// Migrasi satu-kali: ubah semua password plaintext di sheet user menjadi hash.
+// Cara pakai: buka Apps Script > jalankan fungsi ini sekali (Run), lalu cek sheet user.
+function migratePasswordsToHash() {
+  const userSheet = getSheet("user");
+  const data = userSheet.getDataRange().getValues();
+  let migrated = 0;
+  for (let i = 1; i < data.length; i++) {
+    const stored = String(data[i][1] || '').trim();
+    if (!stored || isSHA256Hash(stored)) continue;
+    userSheet.getRange(i + 1, 2).setValue(hashPassword(stored));
+    migrated++;
+  }
+  Logger.log('Migrasi selesai: ' + migrated + ' password diubah ke hash.');
+  return migrated;
 }
 
 function handleFetchImages(fileIds) {

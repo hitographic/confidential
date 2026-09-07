@@ -106,6 +106,10 @@ export default function ChangePasswordModal({ onClose }) {
           )}
         </div>
 
+        <p style={{ margin: '0 0 14px 0', padding: '8px 10px', background: '#eff6ff', borderRadius: 6, fontSize: 11, color: '#1e40af' }}>
+          <i className="fa-solid fa-shield-halved" /> Password disimpan sebagai <b>hash SHA-256</b> di sheet user — password asli tidak tersimpan.
+        </p>
+
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <button className="btn btn-outline" onClick={onClose}>Batal</button>
           <button className="btn btn-primary" onClick={submit}><i className="fa-solid fa-check" /> Simpan Password</button>
