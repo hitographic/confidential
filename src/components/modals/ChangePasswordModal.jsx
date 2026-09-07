@@ -5,8 +5,34 @@ import { useAuth } from '../../context/AuthContext'
 import { validatePasswordStrength } from '../../utils/password'
 
 const inputStyle = {
-  width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8,
+  width: '100%', padding: '10px 40px 10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8,
   fontSize: 14, outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s',
+}
+
+function PwField({ value, onChange, placeholder, show, onToggle }) {
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        type={show ? 'text' : 'password'}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        style={inputStyle}
+        onFocus={(e) => { e.target.style.borderColor = 'var(--secondary)' }}
+        onBlur={(e) => { e.target.style.borderColor = '#e2e8f0' }}
+      />
+      <span
+        onClick={onToggle}
+        title={show ? 'Sembunyikan password' : 'Tampilkan password'}
+        style={{
+          position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+          cursor: 'pointer', color: show ? 'var(--secondary)' : '#94a3b8', fontSize: 15,
+        }}
+      >
+        <i className={show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'} />
+      </span>
+    </div>
+  )
 }
 
 function Rule({ ok, children }) {
@@ -24,6 +50,9 @@ export default function ChangePasswordModal({ onClose }) {
   const [oldPw, setOldPw] = useState('')
   const [newPw, setNewPw] = useState('')
   const [confirmPw, setConfirmPw] = useState('')
+  const [showOld, setShowOld] = useState(false)
+  const [showNew, setShowNew] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
   const [showStrength, setShowStrength] = useState(false)
 
   const v = validatePasswordStrength(newPw)
@@ -50,9 +79,6 @@ export default function ChangePasswordModal({ onClose }) {
   const barColors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981']
   const labels = ['Lemah', 'Sedang', 'Kuat', 'Sangat Kuat']
 
-  const focus = (e) => { e.target.style.borderColor = 'var(--secondary)' }
-  const blur = (e) => { e.target.style.borderColor = '#e2e8f0' }
-
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
@@ -66,14 +92,14 @@ export default function ChangePasswordModal({ onClose }) {
 
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-dark)', display: 'block', marginBottom: 6 }}>Password Lama</label>
-          <input type="password" value={oldPw} onChange={(e) => setOldPw(e.target.value)} placeholder="Masukkan password lama"
-            style={inputStyle} onFocus={focus} onBlur={blur} />
+          <PwField value={oldPw} onChange={(e) => setOldPw(e.target.value)} placeholder="Masukkan password lama"
+            show={showOld} onToggle={() => setShowOld((s) => !s)} />
         </div>
 
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-dark)', display: 'block', marginBottom: 6 }}>Password Baru</label>
-          <input type="password" value={newPw} placeholder="Masukkan password baru"
-            style={inputStyle} onFocus={focus} onBlur={blur}
+          <PwField value={newPw} placeholder="Masukkan password baru"
+            show={showNew} onToggle={() => setShowNew((s) => !s)}
             onChange={(e) => { setNewPw(e.target.value); setShowStrength(true) }} />
           {showStrength && (
             <div style={{ marginTop: 6, fontSize: 11 }}>
@@ -95,8 +121,8 @@ export default function ChangePasswordModal({ onClose }) {
 
         <div style={{ marginBottom: 20 }}>
           <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-dark)', display: 'block', marginBottom: 6 }}>Ulangi Password Baru</label>
-          <input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} placeholder="Ulangi password baru"
-            style={inputStyle} onFocus={focus} onBlur={blur} />
+          <PwField value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} placeholder="Ulangi password baru"
+            show={showConfirm} onToggle={() => setShowConfirm((s) => !s)} />
           {match !== null && (
             <div style={{ marginTop: 4, fontSize: 11, color: match ? '#10b981' : '#ef4444' }}>
               {match
