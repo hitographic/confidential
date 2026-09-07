@@ -141,6 +141,16 @@ function hashPassword(pw) {
   return hashSHA256(String(pw || '').trim());
 }
 
+// Normalisasi idempoten: terima plaintext ATAU hash dari frontend baru.
+// - Jika input sudah 64-char hex -> pakai apa adanya (lowercase).
+// - Jika masih plaintext -> hash dulu.
+// Dengan ini tidak ada double-hash, dan deployment lama/baru saling kompatibel.
+function normalizePasswordHash(pwInput) {
+  const s = String(pwInput || '').trim();
+  if (isSHA256Hash(s)) return s.toLowerCase();
+  return hashPassword(s);
+}
+
 function handleRegisterSignature(nik, signatureData, pin) {
   try {
     const sheet = getSheet("signatures_db");
@@ -197,18 +207,18 @@ function handleLogin(nik, password) {
     const userSheet = getSheet("user");
     if (!userSheet) return { success: false, message: "Sheet 'user' tidak ditemukan." };
     
-    const input = String(password || '').trim();
-    const inputHash = hashPassword(input);
+    const inputNorm = normalizePasswordHash(password);
     const data = userSheet.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
       if (String(data[i][0]).trim() === String(nik).trim()) {
         const stored = String(data[i][1]).trim();
-        const ok = (stored === input) || (stored.toLowerCase() === inputHash.toLowerCase());
+        const storedNorm = normalizePasswordHash(stored);
+        const ok = (storedNorm === inputNorm);
         if (ok) {
           // Auto-migrasi: jika masih plaintext, simpan sebagai hash agar
           // sheet user tidak lagi berisi password asli.
           if (!isSHA256Hash(stored)) {
-            try { userSheet.getRange(i + 1, 2).setValue(inputHash); } catch (e) {}
+            try { userSheet.getRange(i + 1, 2).setValue(storedNorm); } catch (e) {}
           }
           const role = data[i][3] ? String(data[i][3]).trim() : '';
           return { success: true, nama: String(data[i][2]).trim(), role: role, message: "Login Berhasil!" };
@@ -523,19 +533,21 @@ function handleChangePassword(nik, oldPassword, newPassword) {
     const userSheet = getSheet("user");
     if (!userSheet) return { success: false, message: "Sheet 'user' tidak ditemukan." };
     
-    const oldInput = String(oldPassword || '').trim();
-    const oldHash = hashPassword(oldInput);
-    const newHash = hashPassword(newPassword);
+    const oldNorm = normalizePasswordHash(oldPassword);
+    // Simpan SELALU sebagai hash SHA-256 ke sheet user kolom B.
+    // normalize = idempoten: hash dari frontend disimpan apa adanya,
+    // plaintext dari client lama di-hash dulu (tidak ada double-hash).
+    const newNorm = normalizePasswordHash(newPassword);
     const data = userSheet.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
       if (String(data[i][0]).trim() === String(nik).trim()) {
         const stored = String(data[i][1]).trim();
-        const ok = (stored === oldInput) || (stored.toLowerCase() === oldHash.toLowerCase());
+        const storedNorm = normalizePasswordHash(stored);
+        const ok = (storedNorm === oldNorm);
         if (!ok) {
           return { success: false, message: "Password lama salah!" };
         }
-        // Simpan SELALU sebagai hash SHA-256 ke sheet user kolom B
-        userSheet.getRange(i + 1, 2).setValue(newHash);
+        userSheet.getRange(i + 1, 2).setValue(newNorm);
         return { success: true, message: "Password berhasil diubah!" };
       }
     }
@@ -564,7 +576,7 @@ function migratePasswordsToHash() {
 // Penanda versi backend — untuk memastikan deployment /exec sudah versi terbaru.
 // Naikkan string ini setiap kali deploy. Cek via action "getVersion".
 function handleGetVersion() {
-  return { success: true, version: "2026-09-07-pw-hash-v1" };
+  return { success: true, version: "2026-09-07-pw-hash-v2" };
 }
 
 function handleFetchImages(fileIds) {
