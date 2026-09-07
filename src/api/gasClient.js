@@ -56,6 +56,8 @@ export const gasApi = {
 
   changePassword: (nik, oldPassword, newPassword) =>
     post('changePassword', { nik, oldPassword, newPassword }),
+
+  getVersion: () => post('getVersion', {}),
 }
 
 export default gasApi

@@ -561,6 +561,12 @@ function migratePasswordsToHash() {
   return migrated;
 }
 
+// Penanda versi backend — untuk memastikan deployment /exec sudah versi terbaru.
+// Naikkan string ini setiap kali deploy. Cek via action "getVersion".
+function handleGetVersion() {
+  return { success: true, version: "2026-09-07-pw-hash-v1" };
+}
+
 function handleFetchImages(fileIds) {
   try {
     var results = {};
@@ -640,6 +646,9 @@ function doPost(e) {
         break;
       case "changePassword":
         result = handleChangePassword(postData.nik, postData.oldPassword, postData.newPassword);
+        break;
+      case "getVersion":
+        result = handleGetVersion();
         break;
       default:
         result = { success: false, message: "Action tidak dikenal." };
