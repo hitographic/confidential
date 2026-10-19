@@ -34,13 +34,16 @@ function getSheet(sheetName) {
        sheet.appendRow(['ID', 'Kategori', 'Departemen']);
     }
   }
-  // Pastikan kolom Lampiran (L) ada untuk sheet data_pengamatan
+  // Pastikan kolom Lampiran (L) & CAPA (M) ada untuk sheet data_pengamatan
   if (sheetName === 'data_pengamatan') {
     const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
     if (headers.length < 12 || !headers[11] || String(headers[11]).trim() !== 'Lampiran (JSON)') {
       if (headers.length < 12) {
         sheet.getRange(1, 12).setValue('Lampiran (JSON)');
       }
+    }
+    if (headers.length < 13 || !headers[12] || String(headers[12]).trim() !== 'CAPA (JSON)') {
+      sheet.getRange(1, 13).setValue('CAPA (JSON)');
     }
   }
   // Pastikan kolom Updated_At (E) ada untuk sheet signatures_db
@@ -496,12 +499,60 @@ function handleGetDetail(id) {
             auditeeSignature: data[i][8],
             hashIntegritas: data[i][9],
             departemen: data[i][10] || '-',
-            lampiran: (() => { try { return JSON.parse(data[i][11] || '[]'); } catch(e) { return []; } })()
+            lampiran: (() => { try { return JSON.parse(data[i][11] || '[]'); } catch(e) { return []; } })(),
+            capa: (() => { try { return JSON.parse(data[i][12] || '[]'); } catch(e) { return []; } })()
           }
         };
       }
     }
     return { success: false, message: "Data tidak ditemukan." };
+  } catch(e) {
+    return { success: false, message: e.message };
+  }
+}
+
+function handleSaveCapa(id, capaData) {
+  try {
+    const sheet = getSheet("data_pengamatan");
+    const data = sheet.getDataRange().getValues();
+    let rowIndex = -1;
+    let rowData = null;
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === id) {
+        rowIndex = i + 1;
+        rowData = data[i];
+        break;
+      }
+    }
+    if (rowIndex === -1) return { success: false, message: "Data tidak ditemukan." };
+
+    const kategori = rowData[4] || 'Lainnya';
+    const capaArr = (capaData || []).map((f) => {
+      const photos = (f.photos || []).map((p) => {
+        if (p.url && p.url.startsWith('data:image')) {
+          const safeNC = String(f.nc || 'capa').replace(/\s+/g, '_').slice(0, 20);
+          const fileName = id + '_capa_' + safeNC + '_' + new Date().getTime() + '.png';
+          const uploaded = handleUploadPhoto(p.url, kategori, fileName);
+          if (uploaded.success) {
+            return { url: uploaded.url, fileId: uploaded.fileId, caption: p.caption || '' };
+          }
+        }
+        return { url: p.url || '', fileId: p.fileId || '', caption: p.caption || '' };
+      });
+      return {
+        nc: f.nc || '',
+        klausul: f.klausul || '',
+        correction: f.correction || '',
+        indikasiPenyebab: f.indikasiPenyebab || '',
+        correctiveAction: f.correctiveAction || '',
+        targetSelesai: f.targetSelesai || '',
+        photos: photos
+      };
+    });
+
+    sheet.getRange(rowIndex, 13).setValue(JSON.stringify(capaArr));
+    logAuditTrail("SAVE_CAPA", "Unknown", "", id, "");
+    return { success: true, message: "CAPA berhasil disimpan!" };
   } catch(e) {
     return { success: false, message: e.message };
   }
@@ -637,6 +688,9 @@ function doPost(e) {
         break;
       case "getDetail":
         result = handleGetDetail(postData.id);
+        break;
+      case "saveCapa":
+        result = handleSaveCapa(postData.id, postData.capaData);
         break;
       case "deleteData":
         result = handleDeleteData(postData.id);

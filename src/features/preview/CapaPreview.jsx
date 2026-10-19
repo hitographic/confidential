@@ -3,6 +3,7 @@ import Swal from 'sweetalert2'
 import { gasApi } from '../../api/gasClient'
 import { useAuth } from '../../context/AuthContext'
 import { capaSuggestedNo, formatIdDate, getCapaFindings } from './capaUtils'
+import CropPhotoModal from '../../components/modals/CropPhotoModal'
 
 const doCapaPdf = (id, filename) =>
   import('../../utils/exportPdf').then((m) => m.exportCapaPdf(id, filename))
@@ -13,12 +14,22 @@ function CapaCheck({ active, label }) {
   return <td style={{ border: 'none', padding: 2 }}><div className="check-box">{active ? 'V' : ' '}</div> {label}</td>
 }
 
-/** Preview CAPA MGT-004 landscape — port openCapaPreview + export. */
+/**
+ * Preview CAPA MGT-004 landscape.
+ * - Auditor/Admin: baca saja (preview), menampilkan CAPA yang sudah diisi Auditee jika ada.
+ * - Auditee: dapat mengisi Correction, Indikasi Penyebab, Corrective Action, Target Selesai
+ *   serta upload foto perbaikan per temuan, lalu menyimpannya ke backend.
+ */
 export default function CapaPreviewModal({ auditId, onClose }) {
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const [detail, setDetail] = useState(null)
   const [findings, setFindings] = useState([])
   const [no, setNo] = useState('..../CAPA/..../....')
+  const [capa, setCapa] = useState([]) // {nc, klausul, correction, indikasiPenyebab, correctiveAction, targetSelesai, photos:[{id,url,fileId,caption}]}
+  const [saving, setSaving] = useState(false)
+  const [crop, setCrop] = useState(null) // {img, findingIdx}
+
+  const isAuditee = user?.nama && detail?.auditeeName === user?.nama && !isAdmin
 
   useEffect(() => {
     Swal.fire({ title: 'Memuat CAPA...', allowOutsideClick: false, didOpen: () => Swal.showLoading() })
@@ -35,15 +46,100 @@ export default function CapaPreviewModal({ auditId, onClose }) {
       setDetail(d)
       setFindings(f)
       setNo(capaSuggestedNo(f.length, new Date(d.tanggal || new Date()), d.kategori))
+
+      // Inisialisasi data CAPA dari yang sudah disimpan (jika ada), kosong jika belum.
+      const saved = d.capa || []
+      const init = f.map((find, i) => {
+        const s = saved[i] || {}
+        return {
+          nc: find.nc,
+          klausul: find.klausul,
+          correction: s.correction || '',
+          indikasiPenyebab: s.indikasiPenyebab || '',
+          correctiveAction: s.correctiveAction || '',
+          targetSelesai: s.targetSelesai || '',
+          photos: (s.photos || []).map((p, pi) => ({ id: `p-${i}-${pi}`, url: p.url, fileId: p.fileId || '', caption: p.caption || '' }))
+        }
+      })
+      setCapa(init)
     }).catch(() => Swal.fire('Error', 'Gagal memuat data CAPA.', 'error'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auditId])
 
   if (!detail) return null
+
   const cat = detail.kategori || ''
   const dateStr = formatIdDate(detail.tanggal)
   const padded = [...findings]
   while (padded.length < 3) padded.push(null)
+
+  const padCapa = [...capa]
+  while (padCapa.length < 3) padCapa.push({ nc: '', klausul: '', correction: '', indikasiPenyebab: '', correctiveAction: '', targetSelesai: '', photos: [] })
+
+  // --- foto perbaikan ---
+  const onFile = (e, findingIdx) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const img = new Image()
+      img.onload = () => setCrop({ img, findingIdx })
+      img.src = ev.target.result
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const saveCrop = (dataUrl, caption) => {
+    setCapa((prev) => prev.map((f, i) => {
+      if (i !== crop.findingIdx) return f
+      return { ...f, photos: [...f.photos, { id: `photo_${Date.now()}`, url: dataUrl, fileId: '', caption, local: true }] }
+    }))
+    setCrop(null)
+  }
+
+  const editCaption = (findingIdx, photoIdx) => {
+    const photo = capa[findingIdx]?.photos?.[photoIdx]
+    if (!photo) return
+    Swal.fire({ title: 'Edit Keterangan Foto', input: 'text', inputValue: photo.caption || '', showCancelButton: true, confirmButtonText: 'Simpan', cancelButtonText: 'Batal' })
+      .then((r) => {
+        if (r.isConfirmed) {
+          setCapa((prev) => prev.map((f, i) => {
+            if (i !== findingIdx) return f
+            const next = { ...f, photos: [...f.photos] }
+            next.photos[photoIdx] = { ...next.photos[photoIdx], caption: r.value }
+            return next
+          }))
+        }
+      })
+  }
+
+  const delPhoto = (findingIdx, photoIdx) => {
+    Swal.fire({ title: 'Hapus foto ini?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Ya, hapus!' })
+      .then((r) => {
+        if (!r.isConfirmed) return
+        setCapa((prev) => prev.map((f, i) => {
+          if (i !== findingIdx) return f
+          return { ...f, photos: f.photos.filter((_, i2) => i2 !== photoIdx) }
+        }))
+      })
+  }
+
+  const setField = (findingIdx, field, value) => {
+    setCapa((prev) => prev.map((f, i) => i === findingIdx ? { ...f, [field]: value } : f))
+  }
+
+  const doSave = async () => {
+    setSaving(true)
+    Swal.fire({ title: 'Menyimpan CAPA...', allowOutsideClick: false, didOpen: () => Swal.showLoading() })
+    try {
+      const res = await gasApi.saveCapa(detail.id, capa)
+      if (res.success) {
+        Swal.fire('Berhasil!', res.message, 'success')
+      } else Swal.fire('Gagal', res.message, 'error')
+    } catch { Swal.fire('Error', 'Gagal menyimpan CAPA', 'error') }
+    finally { setSaving(false); Swal.close() }
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -51,15 +147,31 @@ export default function CapaPreviewModal({ auditId, onClose }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
           <h3>Preview CAPA Internal Audit <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>(MGT-004 • Landscape)</span></h3>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button className="btn btn-outline" onClick={() => doCapaExcel({ detail, findings, no })} style={{ fontSize: 12 }}>
+            <button className="btn btn-outline" onClick={() => doCapaExcel({ detail, findings, no, capa })} style={{ fontSize: 12 }}>
               <i className="fa-solid fa-file-excel" style={{ color: '#10b981' }} /> Export Excel
             </button>
             <button className="btn btn-outline" onClick={() => doCapaPdf('capaPreviewArea', `CAPA-${cat}.pdf`)} style={{ fontSize: 12 }}>
               <i className="fa-solid fa-file-pdf" style={{ color: '#f43f5e' }} /> Export PDF
             </button>
+            {isAuditee && (
+              <button className="btn btn-primary" onClick={doSave} disabled={saving} style={{ fontSize: 12 }}>
+                {saving ? (
+                  <><i className="fa-solid fa-spinner fa-spin" /> Simpan...</>
+                ) : (
+                  <><i className="fa-solid fa-save" />{' Simpan CAPA'}</>
+                )}
+              </button>
+            )}
             <button className="btn btn-outline" onClick={onClose}><i className="fa-solid fa-xmark" /></button>
           </div>
         </div>
+
+        {isAuditee && (
+          <div style={{ marginBottom: 8, fontSize: 11.5, color: '#0f766e', background: '#ecfdf5', border: '1px solid #10b981', borderRadius: 8, padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <i className="fa-solid fa-circle-info" style={{ fontSize: 12 }} />
+            <span>Mode Auditee — isi <b>Correction</b>, <b>Indikasi Penyebab</b>, <b>Corrective Action</b>, <b>Target Selesai</b> dan upload foto perbaikan per temuan, kemudian klik <b>Simpan CAPA</b>.</span>
+          </div>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '10px 14px' }}>
           <label style={{ fontSize: 13, fontWeight: 700 }}>No :</label>
@@ -125,14 +237,83 @@ export default function CapaPreviewModal({ auditId, onClose }) {
                     </tr>
                   </thead>
                   <tbody id="capaPreviewTableBody">
-                    {padded.map((f, idx) => (
-                      <tr key={idx}>
-                        <td>{f ? `${idx + 1}. ${f.nc}` : ' '}</td>
-                        <td style={{ textAlign: 'center' }}>{f ? f.klausul : ''}</td>
-                        <td style={{ minHeight: 54 }} />
-                        <td /><td /><td />
-                      </tr>
-                    ))}
+                    {padded.map((f, idx) => {
+                      const c = padCapa[idx]
+                      const isRowAuditee = isAuditee && f
+                      return (
+                        <>
+                          <tr key={`row-${idx}`}>
+                            <td style={{ border: '1px solid black', padding: 4, fontSize: 11, verticalAlign: 'top' }}>
+                              {f ? `${idx + 1}. ${f.nc}` : ' '}
+                            </td>
+                            <td style={{ border: '1px solid black', padding: 4, fontSize: 11, textAlign: 'center', verticalAlign: 'top' }}>
+                              {f ? f.klausul : ''}
+                            </td>
+                            <td style={{ border: '1px solid black', padding: 4, verticalAlign: 'top', minHeight: 60 }}>
+                              {isRowAuditee ? (
+                                <textarea
+                                  value={c.correction}
+                                  onChange={(e) => setField(idx, 'correction', e.target.value)}
+                                  style={{ width: '100%', height: 60, fontSize: 11, padding: 4, boxSizing: 'border-box', border: '1px solid #cbd5e1', borderRadius: 4, outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+                                />
+                              ) : (c?.correction || ' ')}
+                            </td>
+                            <td style={{ border: '1px solid black', padding: 4, verticalAlign: 'top', minHeight: 60 }}>
+                              {isRowAuditee ? (
+                                <textarea
+                                  value={c.indikasiPenyebab}
+                                  onChange={(e) => setField(idx, 'indikasiPenyebab', e.target.value)}
+                                  style={{ width: '100%', height: 60, fontSize: 11, padding: 4, boxSizing: 'border-box', border: '1px solid #cbd5e1', borderRadius: 4, outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+                                />
+                              ) : (c?.indikasiPenyebab || ' ')}
+                            </td>
+                            <td style={{ border: '1px solid black', padding: 4, verticalAlign: 'top', minHeight: 60 }}>
+                              {isRowAuditee ? (
+                                <textarea
+                                  value={c.correctiveAction}
+                                  onChange={(e) => setField(idx, 'correctiveAction', e.target.value)}
+                                  style={{ width: '100%', height: 60, fontSize: 11, padding: 4, boxSizing: 'border-box', border: '1px solid #cbd5e1', borderRadius: 4, outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+                                />
+                              ) : (c?.correctiveAction || ' ')}
+                            </td>
+                            <td style={{ border: '1px solid black', padding: 4, verticalAlign: 'top', minHeight: 60 }}>
+                              {isRowAuditee ? (
+                                <input
+                                  type="date"
+                                  value={c.targetSelesai}
+                                  onChange={(e) => setField(idx, 'targetSelesai', e.target.value)}
+                                  style={{ width: '100%', fontSize: 11, padding: 4, boxSizing: 'border-box', border: '1px solid #cbd5e1', borderRadius: 4, outline: 'none', fontFamily: 'inherit' }}
+                                />
+                              ) : (c?.targetSelesai || ' ')}
+                            </td>
+                          </tr>
+                          {isRowAuditee && (
+                            <tr key={`photo-${idx}`}>
+                              <td colSpan={6} style={{ border: '1px solid black', padding: 6, background: '#f1f5f9' }}>
+                                <div style={{ fontSize: 10, fontWeight: 700, marginBottom: 5, color: '#475569' }}>Foto Perbaikan / Bukti Perbaikan (temuan {idx + 1})</div>
+                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                  {(c.photos || []).map((p, pi) => (
+                                    <div key={p.id} style={{ position: 'relative', width: 72, height: 72, border: '1px solid #cbd5e1', borderRadius: 6, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                      <img src={p.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Foto perbaikan" />
+                                      <div style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(211,47,47,0.9)', color: '#fff', fontSize: 10, padding: '1px 4px', borderRadius: 3, cursor: 'pointer', zIndex: 10, onClick: (ev) => { ev.stopPropagation(); delPhoto(idx, pi) } }}>&times;</div>
+                                      <div style={{ position: 'absolute', top: 2, left: 2, background: 'rgba(59,130,246,0.9)', color: '#fff', fontSize: 10, padding: '1px 4px', borderRadius: 3, cursor: 'pointer', zIndex: 10, onClick: (ev) => { ev.stopPropagation(); editCaption(idx, pi) } }}>✎</div>
+                                    </div>
+                                  ))}
+                                  <div
+                                    style={{ width: 72, height: 72, border: '2px dashed #cbd5e1', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', fontSize: 11 }}
+                                    onClick={() => document.getElementById(`capaPhotoInput_${idx}`)?.click()}
+                                    title="Upload foto perbaikan"
+                                  >
+                                    <i className="fa-solid fa-camera" />
+                                  </div>
+                                  <input type="file" id={`capaPhotoInput_${idx}`} accept="image/*" style={{ display: 'none' }} onChange={(e) => onFile(e, idx)} />
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -161,7 +342,12 @@ export default function CapaPreviewModal({ auditId, onClose }) {
           </div>
         </div>
 
+        {crop && <CropPhotoModal image={crop.img} onCancel={() => setCrop(null)} onSave={saveCrop} />}
+
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 14 }}>
+          {isAuditee && (
+            <span style={{ fontSize: 11, color: '#64748b', marginRight: 8 }}>Role: Auditee — data CAPA disimpan per audit ini.</span>
+          )}
           <button className="btn btn-outline" onClick={onClose}>Tutup</button>
         </div>
       </div>

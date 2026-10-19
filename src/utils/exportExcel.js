@@ -82,7 +82,7 @@ export async function exportItemExcel(detail) {
 }
 
 /** Export CAPA MGT-004 landscape ke Excel (port dari exportCapaExcel). */
-export async function exportCapaExcel({ detail, findings, no }) {
+export async function exportCapaExcel({ detail, findings, no, capa = [] }) {
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('CAPA MGT-004')
   ws.mergeCells('A1:F1')
@@ -93,8 +93,16 @@ export async function exportCapaExcel({ detail, findings, no }) {
   ws.addRow(['Departemen', detail?.departemen || '-', 'Tgl. Audit', detail?.tanggal ? new Date(detail.tanggal).toLocaleDateString('id-ID') : '-', '', ''])
   ws.addRow(['KETIDAKSESUAIAN (NC)', 'ELEMEN/KLAUSUL', 'CORRECTION', 'INDIKASI PENYEBAB', 'CORRECTIVE ACTION', 'Target Selesai'])
   ws.getRow(4).font = { bold: true }
-  findings.forEach((f) => {
-    ws.addRow([f.hasilPengamatan, f.kriteria, '', '', '', ''])
+  findings.forEach((f, i) => {
+    const c = capa[i] || {}
+    ws.addRow([
+      f.hasilPengamatan,
+      f.kriteria,
+      c.correction || '',
+      c.indikasiPenyebab || '',
+      c.correctiveAction || '',
+      c.targetSelesai || '',
+    ])
   })
   ws.columns.forEach((c) => { c.width = 26 })
   await downloadWorkbook(wb, `CAPA-${detail?.kategori || 'AUDIT'}-${no.replaceAll('/', '-')}.xlsx`)

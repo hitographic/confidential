@@ -66,6 +66,8 @@ export const gasApi = {
 
   getDetail: (id) => post('getDetail', { id }),
 
+  saveCapa: (id, capaData) => post('saveCapa', { id, capaData }),
+
   deleteData: (id) => post('deleteData', { id }),
 
   updateSignature: (id, role, signatureData, nik, ipAddress, auditeeName = null) =>

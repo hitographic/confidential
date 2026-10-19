@@ -18,6 +18,7 @@ export default function ListPage() {
   const { kategori } = useParams()
   const category = decodeURIComponent(kategori || '')
   const { user, isAdmin } = useAuth()
+  const isAuditeeRole = user?.role && String(user.role).toLowerCase() === 'auditee'
   const { category: ctxCategory, setAudit } = useAudit()
   const navigate = useNavigate()
 
@@ -55,8 +56,10 @@ export default function ListPage() {
     if (qAuditor && !String(item.auditor).toLowerCase().includes(qAuditor.toLowerCase())) return false
     if (qDept && !String(item.departemen || '').toLowerCase().includes(qDept.toLowerCase())) return false
     if (qStatus && item.status !== qStatus) return false
+    // Auditee hanya melihat pengajuan audit miliknya sendiri
+    if (isAuditeeRole && String(item.auditee).toLowerCase() !== String(user?.nama).toLowerCase()) return false
     return true
-  }), [rows, qAuditee, qAuditor, qDept, qStatus])
+  }), [rows, qAuditee, qAuditor, qDept, qStatus, isAuditeeRole, user])
 
   const onDelete = (id) => {
     Swal.fire({
@@ -176,6 +179,13 @@ export default function ListPage() {
                     </>
                   )}
                   <button className="btn btn-danger btn-sm" onClick={() => onDelete(item.id)}><i className="fa-solid fa-trash-can" /></button>
+                </>
+              ) : isAuditeeRole && item.auditee === user?.nama && item.status === 'Submitted' ? (
+                <>
+                  <button className="btn btn-outline btn-sm" onClick={() => setPreviewId(item.id)}><i className="fa-solid fa-eye" /> Preview</button>
+                  <button className="btn btn-outline btn-sm" style={{ color: '#ea580c', borderColor: 'rgba(234,88,12,0.35)' }} onClick={() => setCapaId(item.id)} title="CAPA Internal Audit (MGT-004)">
+                    <i className="fa-solid fa-clipboard-check" /> CAPA
+                  </button>
                 </>
               ) : (
                 <span style={{ color: 'var(--text-light)', fontSize: 14, fontStyle: 'italic' }}>Akses hanya untuk pembuat laporan atau Admin</span>
