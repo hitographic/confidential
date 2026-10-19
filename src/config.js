@@ -1,7 +1,7 @@
 // Satu-satunya config yang wajib diganti saat deploy ulang Apps Script.
 export const GAS_URL =
   import.meta.env.VITE_GAS_URL ||
-  'https://script.google.com/macros/s/AKfycbwXTD5ipaX-OpMfOuEaMUET6nH9cTEnbhDvj_0QgFKvP4jLRoqiJ0r2RP2T25uHoZs5/exec'
+  'https://script.google.com/macros/s/AKfycbz_EScFKWFmMzq8okwjNnLbWKyFFloD2UvDL72KmMxJDI_iUM3Svh9eqG5jq_CiUYaR/exec'
 
 export const CATEGORIES = [
   { key: 'Halal', icon: 'fa-leaf', cls: 'halal', label: 'Halal' },
