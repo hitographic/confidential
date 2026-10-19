@@ -134,11 +134,19 @@ export default function CapaPreviewModal({ auditId, onClose }) {
     Swal.fire({ title: 'Menyimpan CAPA...', allowOutsideClick: false, didOpen: () => Swal.showLoading() })
     try {
       const res = await gasApi.saveCapa(detail.id, capa)
+      await Swal.close() // tutup dialog loading dulu
       if (res.success) {
-        Swal.fire('Berhasil!', res.message, 'success')
-      } else Swal.fire('Gagal', res.message, 'error')
-    } catch { Swal.fire('Error', 'Gagal menyimpan CAPA', 'error') }
-    finally { setSaving(false); Swal.close() }
+        await Swal.fire('Berhasil!', res.message, 'success')
+      } else {
+        await Swal.fire('Gagal', res.message, 'error')
+      }
+    } catch (err) {
+      console.error('[CAPA] Gagal menyimpan:', err)
+      await Swal.close()
+      await Swal.fire('Error', 'Gagal menyimpan CAPA: ' + (err?.message || ''), 'error')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
