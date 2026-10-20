@@ -25,13 +25,33 @@ import { toPasswordHash, isSha256Hash } from '../utils/hash'
  * jadi aman-amban saja selama masa transisi — tapi HAK AKSES SEBENARNYA
  * baru aktif setelah Code.gs di-push & Deploy ulang (clasp push).
  */
+/**
+ * Cache-buster.
+ *
+ * GAS membalas POST dengan redirect302 ke script.googleusercontent.com.
+ * Redirect itu TERKADANG di-cache browser/proxy TANPA header CORS, sehingga
+ * saat di-replay muncul error kedap-kedip:
+ *   "No 'Access-Control-Allow-Origin' header is present on the requested resource"
+ * Parameter query unik memaksa request + redirect-nya selalu segar dari jaringan.
+ * (GAS mengabaikan param query yang tidak dikenal — sudah diverifikasi aman.)
+ */
+function withCacheBust(url) {
+  return `${url}${url.includes('?') ? '&' : '?'}_cb=${Date.now()}`
+}
+
 async function post(action, payload = {}) {
-  const res = await fetch(GAS_URL, {
+  const res = await fetch(withCacheBust(GAS_URL), {
     method: 'POST',
     body: JSON.stringify({ action, ...payload }),
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
+  // Jika GAS sedang bermasalah ia bisa membalas halaman HTML error,
+  // yang membuat res.json() melempar — beri pesan yang lebih jelas.
+  try {
+    return await res.json()
+  } catch {
+    throw new Error('Server tidak merespons dengan benar. Coba muat ulang halaman.')
+  }
 }
 
 export const gasApi = {
