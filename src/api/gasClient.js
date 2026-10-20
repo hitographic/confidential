@@ -3,8 +3,7 @@ import { toPasswordHash, isSha256Hash } from '../utils/hash'
 
 /**
  * Thin wrapper ke backend Google Apps Script (Code.gs → doPost).
- * Kontrak action SAMA PERSIS dengan versi single-file Index.html,
- * jadi backend TIDAK perlu diubah.
+ * Kontrak action SAMA PERSIS dengan versi single-file Index.html.
  *
  * Actions: login, registerSignature, verifySignature, getChecklist,
  * getDepartemen, saveDraft, submitFinal, getList, getDetail, deleteData,
@@ -18,6 +17,13 @@ import { toPasswordHash, isSha256Hash } from '../utils/hash'
  * yang tersimpan tetap hash. Backend baru (normalize) menerima
  * hash maupun plaintext. Login/changePassword memakai fallback
  * 2x percobaan agar tidak lockout saat masa transisi plaintext->hash.
+ *
+ * CATATAN MULTI-ROLE (2026-10-19) — PERLU DEPLOY ULANG BACKEND:
+ * getList & deleteData kini membawa `nik` agar server bisa memfilter
+ * berdasarkan role (auditor/auditee/admin) dan kepemilikan baris.
+ * Backend lama TIDAK memakai `nik` (getList lama abaikan parameter),
+ * jadi aman-amban saja selama masa transisi — tapi HAK AKSES SEBENARNYA
+ * baru aktif setelah Code.gs di-push & Deploy ulang (clasp push).
  */
 async function post(action, payload = {}) {
   const res = await fetch(GAS_URL, {
@@ -61,14 +67,17 @@ export const gasApi = {
   saveDraft: (formData) => post('saveDraft', { formData }),
   submitFinal: (formData) => post('submitFinal', { formData }),
 
-  getList: (auditorName, kategori) =>
-    post('getList', { auditorName, kategori }),
+  // Daftar audit difilter DI SERVER berdasarkan identitas + "topi" aktif.
+  // payload: { nik, activeRole, kategori } — lihat handleGetList di Code.gs.
+  // (nik sengaja dikirim agar server bisa memfilter; jangan andalkan
+  //  kiriman nama, karena role & kepemilikan divalidasi server dari sheet user.)
+  getList: (payload) => post('getList', payload),
 
   getDetail: (id) => post('getDetail', { id }),
 
   saveCapa: (id, capaData) => post('saveCapa', { id, capaData }),
 
-  deleteData: (id) => post('deleteData', { id }),
+  deleteData: (id, nik) => post('deleteData', { id, nik }),
 
   updateSignature: (id, role, signatureData, nik, ipAddress, auditeeName = null) =>
     post('updateSignature', { id, role, signatureData, nik, ipAddress, auditeeName }),

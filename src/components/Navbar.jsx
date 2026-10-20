@@ -5,13 +5,17 @@ import ChangePasswordModal from './modals/ChangePasswordModal'
 import RegisterSignatureModal from './modals/RegisterSignatureModal'
 
 export default function Navbar() {
-  const { user, logout } = useAuth()
+  const { user, logout, isAdmin, isAuditor, isAuditee, activeRole, setActiveRole } = useAuth()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [showSig, setShowSig] = useState(false)
   const [showPw, setShowPw] = useState(false)
 
   const initial = (user?.nama || 'U').charAt(0).toUpperCase()
+  // Switcher hanya berguna untuk user dengan role ganda (Auditor + Auditee).
+  // Admin lihat semua data, jadi ganti topi tidak ada artinya.
+  const showSwitcher = !isAdmin && isAuditor && isAuditee
+  const roleLabel = isAdmin ? 'Admin' : activeRole === 'auditee' ? 'Auditee' : 'Auditor'
 
   const doLogout = () => {
     setOpen(false)
@@ -31,9 +35,27 @@ export default function Navbar() {
           </button>
           <div className={`user-dropdown-menu ${open ? 'show' : ''}`}>
             <div className="dropdown-user-info">
-              <div className="user-name">{user?.nama || '-'}</div>
+              <div className="user-name">
+                {user?.nama || '-'}
+                <span className="role-badge">{roleLabel}</span>
+              </div>
               <div className="user-nik">NIK: {user?.nik || '-'}</div>
             </div>
+            {showSwitcher && (
+              <div className="role-switch">
+                <span className="role-switch-label">Mode kerja</span>
+                <div className="role-switch-options">
+                  <button type="button" className={`role-switch-btn ${activeRole === 'auditor' ? 'active' : ''}`}
+                    onClick={() => setActiveRole('auditor')}>
+                    <i className="fa-solid fa-user-tie" /> Auditor
+                  </button>
+                  <button type="button" className={`role-switch-btn ${activeRole === 'auditee' ? 'active' : ''}`}
+                    onClick={() => setActiveRole('auditee')}>
+                    <i className="fa-solid fa-user-check" /> Auditee
+                  </button>
+                </div>
+              </div>
+            )}
             <button className="dropdown-item" onClick={() => { setOpen(false); setTimeout(() => setShowSig(true), 150) }}>
               <i className="fa-solid fa-pen-nib" /> Ganti Tanda Tangan
             </button>

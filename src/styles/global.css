@@ -149,6 +149,38 @@ body {
 .dropdown-item.danger i { opacity: 0.8; }
 .dropdown-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 4px 10px; }
 
+/* Role badge (menunjukkan "topi" yang sedang dipakai) */
+.role-badge {
+  display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 20px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  background: rgba(99,102,241,0.25); color: #c7d2fe; vertical-align: middle;
+}
+
+/* Role switcher — hanya untuk user dengan role ganda (Auditor + Auditee) */
+.role-switch {
+  padding: 10px 14px 8px; margin-bottom: 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.role-switch-label {
+  display: block; margin-bottom: 8px;
+  font-size: 11px; color: #94a3b8;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.role-switch-options { display: flex; gap: 6px; }
+.role-switch-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 10px; border-radius: 9px;
+  font-size: 12px; font-weight: 600; font-family: inherit;
+  color: #94a3b8; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  cursor: pointer; transition: all 0.15s;
+}
+.role-switch-btn:hover { color: #cbd5e1; background: rgba(255,255,255,0.08); }
+.role-switch-btn.active {
+  color: #fff; background: rgba(99,102,241,0.3);
+  border-color: rgba(129,140,248,0.6);
+}
+
 .container {
   max-width: 1200px;
   margin: 28px auto;

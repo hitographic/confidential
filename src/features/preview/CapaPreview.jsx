@@ -4,6 +4,7 @@ import { gasApi } from '../../api/gasClient'
 import { useAuth } from '../../context/AuthContext'
 import { capaSuggestedNo, formatIdDate, getCapaFindings } from './capaUtils'
 import CropPhotoModal from '../../components/modals/CropPhotoModal'
+import { sameName } from '../../utils/roles'
 
 const doCapaPdf = (id, filename) =>
   import('../../utils/exportPdf').then((m) => m.exportCapaPdf(id, filename))
@@ -21,7 +22,7 @@ function CapaCheck({ active, label }) {
  *   serta upload foto perbaikan per temuan, lalu menyimpannya ke backend.
  */
 export default function CapaPreviewModal({ auditId, onClose }) {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, activeRole } = useAuth()
   const [detail, setDetail] = useState(null)
   const [findings, setFindings] = useState([])
   const [no, setNo] = useState('..../CAPA/..../....')
@@ -29,7 +30,10 @@ export default function CapaPreviewModal({ auditId, onClose }) {
   const [saving, setSaving] = useState(false)
   const [crop, setCrop] = useState(null) // {img, findingIdx}
 
-  const isAuditee = user?.nama && detail?.auditeeName === user?.nama && !isAdmin
+  // Mode isi CAPA hanya untuk topi Auditee (non-admin) atas audit miliknya.
+  // User role ganda yang sedang memakai topi Auditor akan dapat tampilan
+  // baca-saja, meski namanya kebetulan sama dengan auditee (audit lama).
+  const isAuditee = !isAdmin && activeRole === 'auditee' && !!user?.nama && sameName(detail?.auditeeName, user?.nama)
 
   useEffect(() => {
     Swal.fire({ title: 'Memuat CAPA...', allowOutsideClick: false, didOpen: () => Swal.showLoading() })

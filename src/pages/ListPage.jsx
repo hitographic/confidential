@@ -8,6 +8,7 @@ import NewAuditModal from '../components/modals/NewAuditModal'
 import ListSignModal from '../components/modals/ListSignModal'
 import ReportPreviewModal from '../features/preview/ReportPreview'
 import CapaPreviewModal from '../features/preview/CapaPreview'
+import { sameName } from '../utils/roles'
 
 const onExportList = async (rowsToExport, cat) => {
   const { exportListExcel } = await import('../utils/exportExcel')
@@ -17,8 +18,10 @@ const onExportList = async (rowsToExport, cat) => {
 export default function ListPage() {
   const { kategori } = useParams()
   const category = decodeURIComponent(kategori || '')
-  const { user, isAdmin } = useAuth()
-  const isAuditeeRole = user?.role && String(user.role).toLowerCase() === 'auditee'
+  const { user, isAdmin, activeRole } = useAuth()
+  // "Topi" aktif: mode Auditee hanya untuk user non-admin yang sedang
+  // memakai topi Auditee. Mode Auditor dipakai untuk sisanya (termasuk Admin).
+  const isAuditeeMode = !isAdmin && activeRole === 'auditee'
   const { category: ctxCategory, setAudit } = useAudit()
   const navigate = useNavigate()
 
@@ -36,7 +39,9 @@ export default function ListPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await gasApi.getList(user?.nama, category)
+      // Server yang memfilter (auditor -> auditnya sendiri, auditee -> miliknya,
+      // admin -> semua). Lihat handleGetList di Code.gs.
+      const res = await gasApi.getList({ nik: user?.nik, activeRole, kategori: category })
       if (res.success) setRows((res.data || []).filter((d) => d.kategori === category))
     } catch {
       setRows([])
@@ -44,7 +49,7 @@ export default function ListPage() {
     } finally {
       setLoading(false)
     }
-  }, [user, category])
+  }, [user, activeRole, category])
 
   useEffect(() => {
     if (ctxCategory !== category) setAudit({ category })
@@ -56,10 +61,11 @@ export default function ListPage() {
     if (qAuditor && !String(item.auditor).toLowerCase().includes(qAuditor.toLowerCase())) return false
     if (qDept && !String(item.departemen || '').toLowerCase().includes(qDept.toLowerCase())) return false
     if (qStatus && item.status !== qStatus) return false
-    // Auditee hanya melihat pengajuan audit miliknya sendiri
-    if (isAuditeeRole && String(item.auditee).toLowerCase() !== String(user?.nama).toLowerCase()) return false
+    // Mode Auditee: hanya tampilkan audit miliknya sendiri.
+    // (Server sudah memfilter; ini lapis pengaman tambahan di browser.)
+    if (isAuditeeMode && !sameName(item.auditee, user?.nama)) return false
     return true
-  }), [rows, qAuditee, qAuditor, qDept, qStatus, isAuditeeRole, user])
+  }), [rows, qAuditee, qAuditor, qDept, qStatus, isAuditeeMode, user])
 
   const onDelete = (id) => {
     Swal.fire({
@@ -69,7 +75,7 @@ export default function ListPage() {
       if (!r.isConfirmed) return
       Swal.fire({ title: 'Menghapus...', didOpen: () => Swal.showLoading() })
       try {
-        const res = await gasApi.deleteData(id)
+        const res = await gasApi.deleteData(id, user?.nik)
         if (res.success) { Swal.fire('Terhapus!', res.message, 'success'); load() }
         else Swal.fire('Gagal', res.message, 'error')
       } catch { Swal.fire('Error', 'Gagal menghapus', 'error') }
@@ -97,9 +103,11 @@ export default function ListPage() {
               <i className="fa-solid fa-file-excel" style={{ color: '#10b981' }} /> Export Excel
             </button>
           )}
-          <button className="btn btn-primary" onClick={() => setShowNew(true)}>
-            <i className="fa-solid fa-plus" /> Tambah Data
-          </button>
+          {!isAuditeeMode && (
+            <button className="btn btn-primary" onClick={() => setShowNew(true)}>
+              <i className="fa-solid fa-plus" /> Tambah Data
+            </button>
+          )}
         </div>
       </div>
 
@@ -180,7 +188,7 @@ export default function ListPage() {
                   )}
                   <button className="btn btn-danger btn-sm" onClick={() => onDelete(item.id)}><i className="fa-solid fa-trash-can" /></button>
                 </>
-              ) : isAuditeeRole && item.auditee === user?.nama && item.status === 'Submitted' ? (
+              ) : isAuditeeMode && sameName(item.auditee, user?.nama) && item.status === 'Submitted' ? (
                 <>
                   <button className="btn btn-outline btn-sm" onClick={() => setPreviewId(item.id)}><i className="fa-solid fa-eye" /> Preview</button>
                   <button className="btn btn-outline btn-sm" style={{ color: '#ea580c', borderColor: 'rgba(234,88,12,0.35)' }} onClick={() => setCapaId(item.id)} title="CAPA Internal Audit (MGT-004)">

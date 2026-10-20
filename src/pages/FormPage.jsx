@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { useAudit } from '../context/AuditContext'
 import CropPhotoModal from '../components/modals/CropPhotoModal'
 import ReportPreviewModal from '../features/preview/ReportPreview'
+import { sameName } from '../utils/roles'
 
 const AUTOSAVE_KEY = 'matrika_autosave'
 
@@ -229,6 +230,11 @@ export default function FormPage() {
     const cData = collect()
     if (!cData) return
     const payload = buildPayload(cData)
+    // Self-audit dilarang: auditor tidak boleh mengaudit dirinya sendiri.
+    if (sameName(payload.auditorName, payload.auditeeName)) {
+      Swal.fire('Self-audit tidak diizinkan', 'Auditor dan Auditee tidak boleh orang yang sama. Silakan pilih Auditee lain.', 'warning')
+      return
+    }
     Swal.fire({ title: 'Menyimpan...', allowOutsideClick: false, didOpen: () => Swal.showLoading() })
     try {
       const res = await gasApi.saveDraft(payload) // backend menentukan Draft/Submitted dari action; saveDraft dipakai untuk simpan sementara

@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Swal from 'sweetalert2'
 import { gasApi } from '../../api/gasClient'
 import { useAuth } from '../../context/AuthContext'
 import SignaturePad from '../SignaturePad'
+import { sameName } from '../../utils/roles'
 
 /**
  * TTD dari halaman list — auditor pakai PIN, auditee gambar langsung.
@@ -12,7 +13,17 @@ export default function ListSignModal({ auditId, role, onClose, onSaved }) {
   const { user, ipAddress } = useAuth()
   const [pin, setPin] = useState('')
   const [auditeeName, setAuditeeName] = useState('')
+  const [auditorName, setAuditorName] = useState('')
   const [padApi, setPadApi] = useState(null)
+
+  // Ambil nama auditor audit ini, untuk menolak self-audit di sisi UI
+  // (pemeriksaan otoritatif tetap ada di backend: handleUpdateSignature).
+  useEffect(() => {
+    if (role !== 'auditee') return
+    gasApi.getDetail(auditId)
+      .then((res) => { if (res.success) setAuditorName(res.data?.auditorName || '') })
+      .catch(() => {})
+  }, [auditId, role])
 
   const submit = async () => {
     let signatureData = ''
@@ -29,6 +40,9 @@ export default function ListSignModal({ auditId, role, onClose, onSaved }) {
       }
     } else {
       if (!auditeeName.trim()) return Swal.fire('Peringatan', 'Nama auditee wajib diisi', 'warning')
+      if (sameName(auditeeName, auditorName)) {
+        return Swal.fire('Self-audit tidak diizinkan', 'Nama Auditee sama dengan Auditor. Silakan pilih Auditee lain.', 'warning')
+      }
       if (!padApi || padApi.isEmpty()) return Swal.fire('Peringatan', 'Tanda tangan masih kosong', 'warning')
       signatureData = padApi.getCroppedDataURL()
     }

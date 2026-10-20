@@ -10,6 +10,12 @@ function doGet() {
 const FOLDER_ID = "1xjVi1fxtIcZm28BoPKSyFoKJA_8-Elei";
 const SHEET_ID = "1Cmccso6hkwHPJNX1jZy5arK5OAOLnhMBCp89JwJBG50";
 
+// Hak akses getList:
+//   true  -> Auditor HANYA melihat audit yang ia pegang sendiri (disarankan)
+//   false -> Auditor melihat SEMUA audit pada kategorinya
+// Auditee selalu hanya melihat audit miliknya; Admin selalu melihat semua.
+const SCOPE_AUDITOR_OWN_ONLY = true;
+
 // --- Fungsi Utilitas ---
 function getSheet(sheetName) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
@@ -203,6 +209,68 @@ function handleVerifySignature(nik, pin) {
   }
 }
 
+// --- Helper Role & Hak Akses ---
+// Role disimpan di sheet `user` kolom D, bisa berisi beberapa role dipisah
+// koma / semicolon / pipa, mis. "auditor,auditee" (satu orang dua topi).
+function parseRoles(raw) {
+  return String(raw || '')
+    .split(/[,;|]/)
+    .map(function (s) { return s.trim().toLowerCase(); })
+    .filter(function (s) { return !!s; });
+}
+
+// Cocokkan dua nama tanpa peduli huruf besar/kecil & spasi di ujung.
+function sameName(a, b) {
+  const x = String(a || '').trim().toLowerCase();
+  const y = String(b || '').trim().toLowerCase();
+  return !!x && x === y;
+}
+
+// Ambil data user dari sheet `user` berdasarkan NIK.
+// INI sumber kebenaran role — bukan kiriman client (anti-spoofing).
+function getUserByNik(nik) {
+  if (!nik) return null;
+  const sheet = getSheet("user");
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(nik).trim()) {
+      return {
+        nik: String(data[i][0]).trim(),
+        nama: String(data[i][2] || '').trim(),
+        roles: parseRoles(data[i][3])
+      };
+    }
+  }
+  return null;
+}
+
+// "Topi" yang sedang dipakai user, tervalidasi terhadap role miliknya.
+// Fallback aman: auditee bila itu satu-satunya role, selain itu auditor.
+function resolveActiveRole(activeRole, roles) {
+  const r = String(activeRole || '').trim().toLowerCase();
+  if (r && roles.indexOf(r) > -1) return r;
+  if (roles.indexOf('auditee') > -1 && roles.indexOf('auditor') === -1) return 'auditee';
+  return 'auditor';
+}
+
+function isAdminUser(user) {
+  return !!user && user.roles.indexOf('admin') > -1;
+}
+
+function toListItem(row) {
+  return {
+    id: row[0],
+    tanggal: row[1],
+    auditor: row[2],
+    auditee: row[3],
+    kategori: row[4],
+    status: row[6],
+    hasAuditorSign: !!row[7],
+    hasAuditeeSign: !!row[8],
+    departemen: row[10] || '-'
+  };
+}
+
 // --- Handler API ---
 
 function handleLogin(nik, password) {
@@ -284,6 +352,13 @@ function handleGetDepartemen(kategori) {
 
 function handleSaveData(formData, status) {
   try {
+    // Self-audit dilarang: auditor tidak boleh mengaudit dirinya sendiri.
+    if (sameName(formData.auditorName, formData.auditeeName)) {
+      return {
+        success: false,
+        message: "Auditor dan Auditee tidak boleh orang yang sama (self-audit dilarang). Silakan pilih Auditee lain."
+      };
+    }
     const sheet = getSheet("data_pengamatan");
     let id = formData.id;
     let isUpdate = false;
@@ -375,41 +450,88 @@ function handleSaveData(formData, status) {
   }
 }
 
-function handleGetList(auditorName, kategori) {
+// Daftar audit yang BOLEH dilihat user — difilter DI SERVER, bukan di browser:
+//   admin    -> semua baris pada kategori tsb
+//   auditor  -> hanya audit yang ia pegang (lihat SCOPE_AUDITOR_OWN_ONLY)
+//   auditee  -> hanya audit di mana ia menjadi auditee
+// Terima object: { nik, activeRole, kategori }.
+function handleGetList(params) {
   try {
+    params = params || {};
+    const kategori = params.kategori;
+
+    // Kompatibilitas mundut: frontend lama masih mengirim { auditorName, kategori }
+    // tanpa nik. Jangan sampai memutus akses saat masa transisi deploy.
+    if (!params.nik) {
+      return { success: true, data: legacyGetList(params.auditorName, kategori) };
+    }
+
+    const user = getUserByNik(params.nik);
+    if (!user) {
+      return { success: false, message: "User tidak ditemukan. Silakan login ulang." };
+    }
+
+    const admin = isAdminUser(user);
+    const activeRole = resolveActiveRole(params.activeRole, user.roles);
+
     const sheet = getSheet("data_pengamatan");
     const data = sheet.getDataRange().getValues();
     let list = [];
-    
+
     for (let i = 1; i < data.length; i++) {
       if (kategori && data[i][4] !== kategori) continue;
-      
-      list.push({
-        id: data[i][0],
-        tanggal: data[i][1],
-        auditor: data[i][2],
-        auditee: data[i][3],
-        kategori: data[i][4],
-        status: data[i][6],
-        hasAuditorSign: !!data[i][7],
-        hasAuditeeSign: !!data[i][8],
-        departemen: data[i][10] || '-'
-      });
+
+      if (!admin) {
+        if (activeRole === 'auditee') {
+          if (!sameName(data[i][3], user.nama)) continue;
+        } else if (SCOPE_AUDITOR_OWN_ONLY) {
+          if (!sameName(data[i][2], user.nama)) continue;
+        }
+      }
+
+      list.push(toListItem(data[i]));
     }
+
     list.reverse();
-    return { success: true, data: list };
+    // activeRole dikembalikan agar frontend tahu "topi" yang benar-benar dipakai server.
+    return { success: true, data: list, activeRole: activeRole, roles: user.roles };
   } catch(e) {
     return { success: false, message: e.message };
   }
 }
 
-function handleDeleteData(id) {
+// Versi lama tanpa auth — hanya dipakai sebagai fallback kompatibilitas mundut.
+function legacyGetList(auditorName, kategori) {
+  const sheet = getSheet("data_pengamatan");
+  const data = sheet.getDataRange().getValues();
+  let list = [];
+  for (let i = 1; i < data.length; i++) {
+    if (kategori && data[i][4] !== kategori) continue;
+    list.push(toListItem(data[i]));
+  }
+  list.reverse();
+  return list;
+}
+
+// Hapus data: hanya auditor PEMILIK baris tsb atau Admin yang boleh.
+function handleDeleteData(id, nik) {
   try {
     const sheet = getSheet("data_pengamatan");
     const data = sheet.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
       if (data[i][0] === id) {
+        // Cek kewenangan dulu sebelum menghapus (berlaku untuk frontend baru
+        // yang mengirim nik; frontend lama tanpa nik tetap diperbolehkan).
+        if (nik) {
+          const user = getUserByNik(nik);
+          if (!user) return { success: false, message: "User tidak ditemukan. Silakan login ulang." };
+          if (!isAdminUser(user) && !sameName(data[i][2], user.nama)) {
+            return { success: false, message: "Anda tidak berwenang menghapus audit ini." };
+          }
+        }
+        const targetId = data[i][0];
         sheet.deleteRow(i + 1);
+        logAuditTrail("DELETE_DATA", nik || "Unknown", "", targetId, "");
         return { success: true, message: "Data berhasil dihapus!" };
       }
     }
@@ -435,6 +557,15 @@ function handleUpdateSignature(id, role, signatureData, nik, ipAddress, auditeeN
     }
     
     if (rowIndex === -1) return { success: false, message: "Data tidak ditemukan." };
+
+    // Self-audit dilarang: auditee yang akan ditandatangani tidak boleh
+    // sama dengan auditor pada baris yang sama (segregation of duties).
+    if (role === 'auditee' && auditeeName && sameName(auditeeName, rowData[2])) {
+      return {
+        success: false,
+        message: "Tanda tangan Auditee ditolak: nama Auditee sama dengan Auditor. Self-audit tidak diizinkan."
+      };
+    }
     
     let url = signatureData;
     if (url.startsWith('data:image')) {
@@ -627,7 +758,7 @@ function migratePasswordsToHash() {
 // Penanda versi backend — untuk memastikan deployment /exec sudah versi terbaru.
 // Naikkan string ini setiap kali deploy. Cek via action "getVersion".
 function handleGetVersion() {
-  return { success: true, version: "2026-09-07-pw-hash-v2" };
+  return { success: true, version: "2026-10-19-multi-role-v3" };
 }
 
 function handleFetchImages(fileIds) {
@@ -684,7 +815,7 @@ function doPost(e) {
         result = handleSaveData(postData.formData, "Submitted");
         break;
       case "getList":
-        result = handleGetList(postData.auditorName, postData.kategori);
+        result = handleGetList(postData);
         break;
       case "getDetail":
         result = handleGetDetail(postData.id);
@@ -693,7 +824,7 @@ function doPost(e) {
         result = handleSaveCapa(postData.id, postData.capaData);
         break;
       case "deleteData":
-        result = handleDeleteData(postData.id);
+        result = handleDeleteData(postData.id, postData.nik);
         break;
       case "updateSignature":
         result = handleUpdateSignature(postData.id, postData.role, postData.signatureData, postData.nik, postData.ipAddress, postData.auditeeName);
