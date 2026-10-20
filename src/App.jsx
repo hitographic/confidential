@@ -4,6 +4,7 @@ import { AuditProvider } from './context/AuditContext'
 import Navbar from './components/Navbar'
 import ProtectedRoute from './components/ProtectedRoute'
 import LoginPage from './pages/LoginPage'
+import RolePage from './pages/RolePage'
 import CategoryPage from './pages/CategoryPage'
 import ListPage from './pages/ListPage'
 import FormPage from './pages/FormPage'
@@ -17,6 +18,9 @@ function Shell() {
       <div className="container">
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          {/* requireRole=false: halaman ini justru tempat memilih role,
+              jadi tidak boleh redirect ke dirinya sendiri. */}
+          <Route path="/pilih-role" element={<ProtectedRoute requireRole={false}><RolePage /></ProtectedRoute>} />
           <Route path="/kategori" element={<ProtectedRoute><CategoryPage /></ProtectedRoute>} />
           <Route path="/list/:kategori" element={<ProtectedRoute><ListPage /></ProtectedRoute>} />
           <Route path="/form" element={<ProtectedRoute><FormPage /></ProtectedRoute>} />

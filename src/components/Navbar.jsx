@@ -5,7 +5,7 @@ import ChangePasswordModal from './modals/ChangePasswordModal'
 import RegisterSignatureModal from './modals/RegisterSignatureModal'
 
 export default function Navbar() {
-  const { user, logout, isAdmin, isAuditor, isAuditee, activeRole, setActiveRole } = useAuth()
+  const { user, logout, isAdmin, isAuditor, isAuditee, activeRole, setActiveRole, hasChosenRole } = useAuth()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [showSig, setShowSig] = useState(false)
@@ -37,7 +37,7 @@ export default function Navbar() {
             <div className="dropdown-user-info">
               <div className="user-name">
                 {user?.nama || '-'}
-                <span className="role-badge">{roleLabel}</span>
+                {(isAdmin || hasChosenRole) && <span className="role-badge">{roleLabel}</span>}
               </div>
               <div className="user-nik">NIK: {user?.nik || '-'}</div>
             </div>

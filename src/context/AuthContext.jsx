@@ -52,6 +52,14 @@ export function AuthProvider({ children }) {
     return defaultActiveRole(roles)
   }, [activeRoleRaw, roles])
 
+  // User role ganda (Auditor + Auditee, non-admin) diminta memilih "topi"
+  // lewat halaman /pilih-role sebelum masuk aplikasi.
+  const hasMultipleRoles = !isAdmin && isAuditor && isAuditee
+
+  // Dianggap sudah memilih jika: role tunggal (otomatis, tak perlu ditanya)
+  // atau ada pilihan tersimpan yang benar-benar milik user tsb.
+  const hasChosenRole = !hasMultipleRoles || (activeRoleRaw !== '' && roles.includes(activeRoleRaw))
+
   const hasRole = (r) => roles.includes(String(r || '').toLowerCase())
 
   const setActiveRole = (r) => {
@@ -99,6 +107,8 @@ export function AuthProvider({ children }) {
         activeRole,
         setActiveRole,
         hasRole,
+        hasMultipleRoles,
+        hasChosenRole,
         isAdmin,
         isAuditor,
         isAuditee,

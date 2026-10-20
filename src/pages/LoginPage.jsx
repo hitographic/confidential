@@ -49,7 +49,9 @@ export default function LoginPage() {
     try {
       const res = await login(nik, password)
       if (res.success) {
-        navigate('/kategori')
+        // /pilih-role akan melewatkan user role tunggal / Admin
+        // langsung ke /kategori (lihat RolePage.jsx).
+        navigate('/pilih-role')
         checkSignatureOnLogin(nik)
       } else {
         Swal.fire('Gagal', res.message, 'error')
@@ -57,10 +59,10 @@ export default function LoginPage() {
     } catch (err) {
       console.error(err)
       Swal.fire('Info', 'Mode Demo (Backend belum diperbarui). Login sebagai Guest.', 'info')
-      const demo = { nik: 'guest', nama: 'Auditor Demo' }
+      const demo = { nik: 'guest', nama: 'Auditor Demo', role: 'auditor' }
       setUser(demo)
       sessionStorage.setItem('matrika_user', JSON.stringify(demo))
-      navigate('/kategori')
+      navigate('/pilih-role')
     } finally {
       setLoading(false)
     }
