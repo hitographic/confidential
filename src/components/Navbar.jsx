@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import ChangePasswordModal from './modals/ChangePasswordModal'
@@ -7,6 +7,7 @@ import RegisterSignatureModal from './modals/RegisterSignatureModal'
 export default function Navbar() {
   const { user, logout, isAdmin, isAuditor, isAuditee, activeRole, setActiveRole, hasChosenRole } = useAuth()
   const navigate = useNavigate()
+  const loc = useLocation()
   const [open, setOpen] = useState(false)
   const [showSig, setShowSig] = useState(false)
   const [showPw, setShowPw] = useState(false)
@@ -16,6 +17,7 @@ export default function Navbar() {
   // Admin lihat semua data, jadi ganti topi tidak ada artinya.
   const showSwitcher = !isAdmin && isAuditor && isAuditee
   const roleLabel = isAdmin ? 'Admin' : activeRole === 'auditee' ? 'Auditee' : 'Auditor'
+  const roleCls = activeRole === 'auditee' ? 'auditee' : ''
 
   const doLogout = () => {
     setOpen(false)
@@ -23,9 +25,13 @@ export default function Navbar() {
     navigate('/login')
   }
 
+  const goHome = () => navigate('/kategori')
+  const isHome = loc.pathname === '/kategori'
+
   return (
     <>
-      <nav className="navbar">
+      {/* ---- TOP NAV (desktop) ---- */}
+      <nav className="navbar" id="navbar">
         <Link to="/kategori" className="brand-link">
           <img src="./logo-confidential.png" alt="Confidential" className="brand-logo" />
         </Link>
@@ -37,7 +43,7 @@ export default function Navbar() {
             <div className="dropdown-user-info">
               <div className="user-name">
                 {user?.nama || '-'}
-                {(isAdmin || hasChosenRole) && <span className="role-badge">{roleLabel}</span>}
+                {(isAdmin || hasChosenRole) && <span className={`role-badge ${roleCls}`}>{roleLabel}</span>}
               </div>
               <div className="user-nik">NIK: {user?.nik || '-'}</div>
             </div>
@@ -49,7 +55,7 @@ export default function Navbar() {
                     onClick={() => setActiveRole('auditor')}>
                     <i className="fa-solid fa-user-tie" /> Auditor
                   </button>
-                  <button type="button" className={`role-switch-btn ${activeRole === 'auditee' ? 'active' : ''}`}
+                  <button type="button" className={`role-switch-btn auditee ${activeRole === 'auditee' ? 'active' : ''}`}
                     onClick={() => setActiveRole('auditee')}>
                     <i className="fa-solid fa-user-check" /> Auditee
                   </button>
@@ -69,6 +75,30 @@ export default function Navbar() {
           </div>
         </div>
       </nav>
+
+      {/* ---- BOTTOM NAV (mobile) ---- */}
+      <nav className="bottom-nav" aria-label="Navigasi utama">
+        <button className={`bottom-nav-item ${isHome ? 'active' : ''}`} onClick={goHome}>
+          <i className="fa-solid fa-house" />
+          <span>Beranda</span>
+        </button>
+        <button className="bottom-nav-item" onClick={() => setShowSig(true)} title="Tanda Tangan">
+          <i className="fa-solid fa-pen-nib" />
+          <span>TTD</span>
+        </button>
+        <button className="bottom-nav-fab" onClick={goHome} title="Kategori Audit" aria-label="Kategori Audit">
+          <i className="fa-solid fa-table-cells-large" />
+        </button>
+        <button className="bottom-nav-item" onClick={() => setShowPw(true)} title="Ganti Password">
+          <i className="fa-solid fa-lock" />
+          <span>Password</span>
+        </button>
+        <button className="bottom-nav-item" onClick={doLogout} title="Keluar">
+          <i className="fa-solid fa-right-from-bracket" />
+          <span>Keluar</span>
+        </button>
+      </nav>
+
       {showSig && <RegisterSignatureModal onClose={() => setShowSig(false)} />}
       {showPw && <ChangePasswordModal onClose={() => setShowPw(false)} />}
     </>

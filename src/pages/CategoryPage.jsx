@@ -13,11 +13,14 @@ export default function CategoryPage() {
 
   return (
     <div>
-      <h2 style={{ marginBottom: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>Pilih Kategori Audit</h2>
+      <h2 className="page-title">
+        Pilih Kategori Audit
+        <small>Pilih standar audit yang ingin kamu kerjakan</small>
+      </h2>
       <div className="menu-grid">
         {CATEGORIES.map((c) => (
           <div key={c.key} className="glass-card menu-card" onClick={() => open(c.key)}>
-            <div className={`menu-icon ${c.cls}`}><i className={`fa-solid ${c.icon}`} /></div>
+            <div className={`menu-icon icon3d ${c.cls}`}><i className={`fa-solid ${c.icon}`} /></div>
             <h3>{c.label}</h3>
           </div>
         ))}

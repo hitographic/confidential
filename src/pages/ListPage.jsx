@@ -135,11 +135,14 @@ export default function ListPage() {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 20 }}><i className="fa-solid fa-spinner fa-spin fa-2x" /><br />Memuat data...</div>
+        <div className="loading-state">
+          <div className="icon3d peri round"><i className="fa-solid fa-spinner" /></div>
+          <span>Memuat data...</span>
+        </div>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
-          <i className="fa-solid fa-inbox" style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }} /><br />
-          <span style={{ fontSize: 14, fontWeight: 500 }}>Tidak ada data ditemukan</span>
+        <div className="empty-state">
+          <div className="icon3d round"><i className="fa-solid fa-inbox" /></div>
+          <span>Tidak ada data ditemukan</span>
         </div>
       ) : filtered.map((item) => {
         const dateStr = item.tanggal ? new Date(item.tanggal).toLocaleDateString('id-ID') : '-'

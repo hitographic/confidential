@@ -75,14 +75,16 @@ export default function LoginPage() {
         <div className="login-logo-glow">
           <img src="./login.png" alt="Confidential" className="login-logo-full" />
         </div>
+        <h2>Selamat Datang</h2>
+        <p className="login-subtitle">Masuk untuk mulai Audit Internal</p>
         <form onSubmit={onSubmit}>
           <div className="form-group">
-            <label><i className="fa-solid fa-fingerprint" style={{ width: 16, color: 'var(--secondary)' }} /> NIK</label>
-            <input value={nik} onChange={(e) => setNik(e.target.value)} placeholder="Masukkan NIK Anda" required />
+            <label><span className="icon3d sky round" style={{ width: 22, height: 22, fontSize: 10, verticalAlign: 'middle', marginRight: 6, display: 'inline-flex' }}><i className="fa-solid fa-fingerprint" /></span>NIK</label>
+            <input value={nik} onChange={(e) => setNik(e.target.value)} placeholder="Masukkan NIK Anda" inputMode="numeric" autoComplete="username" required />
           </div>
           <div className="form-group">
-            <label><i className="fa-solid fa-lock" style={{ width: 16, color: 'var(--secondary)' }} /> Password</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Masukkan password" required />
+            <label><span className="icon3d peri round" style={{ width: 22, height: 22, fontSize: 10, verticalAlign: 'middle', marginRight: 6, display: 'inline-flex' }}><i className="fa-solid fa-lock" /></span>Password</label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Masukkan password" autoComplete="current-password" required />
           </div>
           <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? <><i className="fa-solid fa-spinner fa-spin" /> Proses...</> : <><i className="fa-solid fa-arrow-right-to-bracket" /> Masuk</>}

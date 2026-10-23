@@ -58,7 +58,7 @@ export default function RolePage() {
       <div className="menu-grid role-gate-grid">
         {visible.map((o) => (
           <div key={o.key} className="glass-card menu-card" onClick={() => pick(o.key)}>
-            <div className={`menu-icon ${o.cls}`}><i className={`fa-solid ${o.icon}`} /></div>
+            <div className={`menu-icon icon3d ${o.cls}`}><i className={`fa-solid ${o.icon}`} /></div>
             <h3>{o.title}</h3>
             <p className="role-gate-desc">{o.desc}</p>
           </div>

@@ -256,16 +256,25 @@ export default function FormPage() {
     setShowPreview(true)
   }
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 40 }}><i className="fa-solid fa-spinner fa-spin fa-2x" /><br />Memuat pertanyaan...</div>
+  if (loading) return (
+    <div className="loading-state">
+      <div className="icon3d peri round"><i className="fa-solid fa-spinner" /></div>
+      <span>Memuat pertanyaan...</span>
+    </div>
+  )
 
   return (
     <div>
-      <div className="header-action">
-        <button className="btn btn-outline" onClick={() => navigate(`/list/${encodeURIComponent(category)}`)}>
-          <i className="fa-solid fa-arrow-left" /> Batal
-        </button>
-        <h2 style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>Form Checklist: <span style={{ color: 'var(--secondary)' }}>{category}{dept ? ` - ${dept}` : ''}</span></h2>
-        <div style={{ fontWeight: 600, color: 'var(--text-light)', fontSize: 13 }}>Auditee: <span style={{ color: 'var(--text-dark)' }}>{auditee}</span></div>
+      <div className="header-action list-header">
+        <div className="list-title-row">
+          <button className="btn btn-outline list-back-btn" onClick={() => navigate(`/list/${encodeURIComponent(category)}`)}>
+            <i className="fa-solid fa-arrow-left" /> Batal
+          </button>
+          <h2 className="list-title">Form Checklist: <span style={{ color: 'var(--secondary)' }}>{category}{dept ? ` - ${dept}` : ''}</span></h2>
+        </div>
+        <div className="list-header-actions" style={{ fontWeight: 600, color: 'var(--text-light)', fontSize: 13 }}>
+          Auditee: <span style={{ color: 'var(--text-dark)' }}>{auditee}</span>
+        </div>
       </div>
 
       <div className="table-responsive">
