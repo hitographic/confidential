@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Swal from 'sweetalert2'
 import { gasApi } from '../../api/gasClient'
+import { swr } from '../../api/swrCache'
 
 export default function NewAuditModal({ kategori, onClose, onStart }) {
   const [depts, setDepts] = useState([])
@@ -8,9 +9,11 @@ export default function NewAuditModal({ kategori, onClose, onStart }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    gasApi.getDepartemen(kategori)
+    // Daftar departemen jarang berubah -> cache 10 menit agar modal
+    // terbuka seketika tanpa menunggu cold-start GAS.
+    swr('departemen', { kategori }, () => gasApi.getDepartemen(kategori), { ttlMs: 10 * 60 * 1000 })
       .then((res) => {
-        if (res.success) setDepts(res.data || [])
+        if (res?.success) setDepts(res.data || [])
       })
       .catch(() => setDepts([{ nama: 'Produksi (Demo)' }]))
       .finally(() => setLoading(false))

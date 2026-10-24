@@ -16,6 +16,77 @@ const SHEET_ID = "1Cmccso6hkwHPJNX1jZy5arK5OAOLnhMBCp89JwJBG50";
 // Auditee selalu hanya melihat audit miliknya; Admin selalu melihat semua.
 const SCOPE_AUDITOR_OWN_ONLY = true;
 
+/* ------------------------------------------------------------------------
+ * CACHE — percepat respons (ditambahkan 2026-10-24)
+ *
+ * Masalah: setiap request POST ke /exec membuka Spreadsheet + memanggil
+ * getDataRange().getValues(), yang memindai SELURUH sheet. Untuk data yang
+ * sering dibaca (list, detail) maupun yang jarang berubah (template
+ * checklist, departemen), cold-start GAS terasa lambat tiap klik.
+ *
+ * Solusi: simpan hasil baca di CacheService selama beberapa detik/menit.
+ *
+ * Invalidasi: memakai "stempel versi global" (dataVersion) yang ikut
+ * menyusun kunci cache. Setiap aksi tulis memanggil bumpDataVersion(),
+ * sehingga SELURUH cache list/detail lama otomatis tidak terpakai — tanpa
+ * perlu menebak & menghapus satu per satu kuncinya.
+ * ---------------------------------------------------------------------- */
+const CACHE_TTL = {
+  checklist: 600,   // 10 menit — template jarang berubah
+  departemen: 600,
+  version: 600,
+  data: 60,         // 1 menit — list/detail tetap cukup segar
+  user: 30,         // 30 detik — hanya nik/nama/roles (tanpa kredensial)
+};
+
+// CacheService membatasi payload ~100KB per entri; jangan simpan yang lebih.
+const CACHE_MAX_CHARS = 90000;
+const DATA_VER_KEY = 'audit_data_version';
+
+function cache_() {
+  try { return CacheService.getScriptCache(); } catch (e) { return null; }
+}
+
+function dataVersion() {
+  const c = cache_();
+  if (!c) return '0';
+  try {
+    let v = c.get(DATA_VER_KEY);
+    if (!v) { v = '1'; c.put(DATA_VER_KEY, v, 21600); }
+    return String(v);
+  } catch (e) { return '0'; }
+}
+
+// Panggil SETELAH berhasil menulis, agar cache baca lama tidak terpakai lagi.
+function bumpDataVersion() {
+  const c = cache_();
+  if (!c) return;
+  try { c.put(DATA_VER_KEY, String(Date.now()), 21600); } catch (e) {}
+}
+
+/**
+ * Jalankan fn() dengan hasil cache-nya.
+ * @param {string} key       kunci unik
+ * @param {number} ttl       detik
+ * @param {Function} fn      penghasil nilai (dipanggil hanya saat cache miss)
+ * @param {boolean} [skipFalsy] true -> jangan cache hasil bernilai false/null
+ */
+function cachedGet(key, ttl, fn, skipFalsy) {
+  const c = cache_();
+  if (!c) return fn(); // CacheService tidak tersedia -> tanpa cache
+  try {
+    const hit = c.get(key);
+    if (hit !== null && hit !== undefined) return JSON.parse(hit);
+  } catch (e) { /* miss / korup -> baca ulang */ }
+  const value = fn();
+  if (skipFalsy && !value) return value;
+  try {
+    const s = JSON.stringify(value);
+    if (s.length < CACHE_MAX_CHARS) c.put(key, s, ttl);
+  } catch (e) { /* terlalu besar / gagal -> lewati cache */ }
+  return value;
+}
+
 // --- Fungsi Utilitas ---
 function getSheet(sheetName) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
@@ -304,6 +375,14 @@ function handleLogin(nik, password) {
 }
 
 function handleGetChecklist(kategori, departemen) {
+  // Template jarang berubah -> cache 10 menit per (kategori, departemen).
+  const key = 'chk|' + String(kategori || '').toUpperCase() + '|' + String(departemen || '').toUpperCase();
+  return cachedGet(key, CACHE_TTL.checklist, function () {
+    return handleGetChecklistRaw(kategori, departemen);
+  });
+}
+
+function handleGetChecklistRaw(kategori, departemen) {
   try {
     const sheet = getSheet("checklist_template");
     const data = sheet.getDataRange().getValues();
@@ -329,6 +408,14 @@ function handleGetChecklist(kategori, departemen) {
 }
 
 function handleGetDepartemen(kategori) {
+  // Daftar departemen jarang berubah -> cache 10 menit per kategori.
+  const key = 'dept|' + String(kategori || '').toUpperCase();
+  return cachedGet(key, CACHE_TTL.departemen, function () {
+    return handleGetDepartemenRaw(kategori);
+  });
+}
+
+function handleGetDepartemenRaw(kategori) {
   try {
     const sheet = getSheet("list_departemen");
     const data = sheet.getDataRange().getValues();
@@ -443,7 +530,10 @@ function handleSaveData(formData, status) {
     } else {
       sheet.appendRow(rowData);
     }
-    
+
+    // Data berubah -> buang cache baca (list/detail) agar tidak basi.
+    bumpDataVersion();
+
     return { success: true, hash: hashIntegritas, message: `Data berhasil disimpan sebagai ${status}!` };
   } catch(e) {
     return { success: false, message: e.message };
@@ -456,6 +546,19 @@ function handleSaveData(formData, status) {
 //   auditee  -> hanya audit di mana ia menjadi auditee
 // Terima object: { nik, activeRole, kategori }.
 function handleGetList(params) {
+  params = params || {};
+  // Cache 60 detik per (nik, role, kategori). Kunci memuat dataVersion()
+  // sehingga setiap aksi tulis (bumpDataVersion) otomatis membuang cache lama.
+  const key = 'list|' + dataVersion() + '|' +
+    String(params.nik || '') + '|' +
+    String(params.activeRole || '') + '|' +
+    String(params.kategori || '');
+  return cachedGet(key, CACHE_TTL.data, function () {
+    return handleGetListRaw(params);
+  });
+}
+
+function handleGetListRaw(params) {
   try {
     params = params || {};
     const kategori = params.kategori;
@@ -532,6 +635,7 @@ function handleDeleteData(id, nik) {
         const targetId = data[i][0];
         sheet.deleteRow(i + 1);
         logAuditTrail("DELETE_DATA", nik || "Unknown", "", targetId, "");
+        bumpDataVersion(); // data berubah -> buang cache baca lama
         return { success: true, message: "Data berhasil dihapus!" };
       }
     }
@@ -603,7 +707,8 @@ function handleUpdateSignature(id, role, signatureData, nik, ipAddress, auditeeN
       
       logAuditTrail("SUBMIT_REPORT_SIGNED", nik || "Unknown", ipAddress, id, hashIntegritas);
     }
-    
+
+    bumpDataVersion(); // data berubah -> buang cache baca lama
     return { success: true, status: status, hash: hashIntegritas, message: "Tanda tangan berhasil disimpan!" };
   } catch(e) {
     return { success: false, message: e.message };
@@ -611,6 +716,14 @@ function handleUpdateSignature(id, role, signatureData, nik, ipAddress, auditeeN
 }
 
 function handleGetDetail(id) {
+  // Cache 60 detik per id; ikut dataVersion agar segar setelah ada tulisan.
+  const key = 'detail|' + dataVersion() + '|' + String(id || '');
+  return cachedGet(key, CACHE_TTL.data, function () {
+    return handleGetDetailRaw(id);
+  });
+}
+
+function handleGetDetailRaw(id) {
   try {
     const sheet = getSheet("data_pengamatan");
     const data = sheet.getDataRange().getValues();
@@ -683,6 +796,7 @@ function handleSaveCapa(id, capaData) {
 
     sheet.getRange(rowIndex, 13).setValue(JSON.stringify(capaArr));
     logAuditTrail("SAVE_CAPA", "Unknown", "", id, "");
+    bumpDataVersion(); // data berubah -> buang cache baca lama
     return { success: true, message: "CAPA berhasil disimpan!" };
   } catch(e) {
     return { success: false, message: e.message };
@@ -758,7 +872,9 @@ function migratePasswordsToHash() {
 // Penanda versi backend — untuk memastikan deployment /exec sudah versi terbaru.
 // Naikkan string ini setiap kali deploy. Cek via action "getVersion".
 function handleGetVersion() {
-  return { success: true, version: "2026-10-19-multi-role-v3" };
+  return cachedGet('version', CACHE_TTL.version, function () {
+    return { success: true, version: "2026-10-24-cache-v4" };
+  });
 }
 
 function handleFetchImages(fileIds) {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Swal from 'sweetalert2'
 import { gasApi } from '../api/gasClient'
+import { swr, swrInvalidate } from '../api/swrCache'
 import { useAuth } from '../context/AuthContext'
 import { useAudit } from '../context/AuditContext'
 import CropPhotoModal from '../components/modals/CropPhotoModal'
@@ -31,13 +32,23 @@ export default function FormPage() {
   const [showPreview, setShowPreview] = useState(false)
   const [draftPayload, setDraftPayload] = useState(null)
 
+  /**
+   * Kembali ke daftar audit.
+   * Kategori yang kosong/undefined diblok agar tidak menghasilkan
+   * URL "/list/undefined" (yang membuat daftar tampak kosong).
+   */
+  const goList = () => {
+    if (!category) { navigate('/kategori'); return }
+    navigate(`/list/${encodeURIComponent(category)}`)
+  }
+
   // --- load questions / edit ---
   useEffect(() => {
     if (!category) { navigate('/kategori'); return }
     if (editId) {
       loadEdit(editId)
     } else if (!auditee) {
-      navigate(`/list/${encodeURIComponent(category)}`)
+      goList()
     } else {
       loadQuestions()
     }
@@ -47,7 +58,14 @@ export default function FormPage() {
   const loadQuestions = async () => {
     setLoading(true)
     try {
-      const res = await gasApi.getChecklist(category, dept)
+      // Template checklist jarang berubah -> cache 10 menit agar buka form
+      // berikutnya tidak perlu menunggu cold-start GAS lagi.
+      const res = await swr(
+        'checklist',
+        { kategori: category, departemen: dept },
+        () => gasApi.getChecklist(category, dept),
+        { ttlMs: 10 * 60 * 1000 },
+      )
       if (res.success) {
         setQuestions(res.data || [])
         setAudit({ questions: res.data || [] })
@@ -72,7 +90,14 @@ export default function FormPage() {
       Swal.close()
       if (!res.success) { Swal.fire('Gagal', res.message, 'error'); return }
       const d = res.data
-      setAudit({ category: d.kategori, auditee: d.auditeeName, dept: d.departemen })
+      // Jangan biarkan category menjadi undefined/null akibat respons yang
+      // tidak lengkap — itu membuat link "Batal" menuju /list/undefined dan
+      // daftar jadi kosong (mencari kategori yang salah). Pertahankan nilai lama.
+      setAudit({
+        category: d.kategori || category,
+        auditee: d.auditeeName,
+        dept: d.departemen,
+      })
       const qs = (d.checklistData || []).map((q) => ({ no: q.no, type: q.type, kriteria: q.kriteria, pertanyaan: q.pertanyaan }))
       setQuestions(qs)
       setAudit({ questions: qs })
@@ -241,7 +266,10 @@ export default function FormPage() {
       if (res.success) {
         Swal.fire('Berhasil!', res.message, 'success').then(() => {
           sessionStorage.removeItem(AUTOSAVE_KEY)
-          navigate(`/list/${encodeURIComponent(category)}`)
+          // Data baru saja berubah -> buang cache list agar halaman daftar
+          // mengambil data segar (bukan menampilkan cache yang sudah basi).
+          swrInvalidate('list')
+          goList()
         })
       } else Swal.fire('Gagal', res.message, 'error')
     } catch {
@@ -267,7 +295,7 @@ export default function FormPage() {
     <div>
       <div className="header-action list-header">
         <div className="list-title-row">
-          <button className="btn btn-outline list-back-btn" onClick={() => navigate(`/list/${encodeURIComponent(category)}`)}>
+          <button className="btn btn-outline list-back-btn" onClick={goList}>
             <i className="fa-solid fa-arrow-left" /> Batal
           </button>
           <h2 className="list-title">Form Checklist: <span style={{ color: 'var(--secondary)' }}>{category}{dept ? ` - ${dept}` : ''}</span></h2>
@@ -363,7 +391,11 @@ export default function FormPage() {
           draft={draftPayload}
           source="form"
           onClose={() => setShowPreview(false)}
-          onSaved={() => { sessionStorage.removeItem(AUTOSAVE_KEY); navigate(`/list/${encodeURIComponent(category)}`) }}
+          onSaved={() => {
+            sessionStorage.removeItem(AUTOSAVE_KEY)
+            swrInvalidate('list')
+            goList()
+          }}
         />
       )}
     </div>

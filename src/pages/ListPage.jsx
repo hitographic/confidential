@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Swal from 'sweetalert2'
 import { gasApi } from '../api/gasClient'
+import { swr, swrKey, swrRead } from '../api/swrCache'
 import { useAuth } from '../context/AuthContext'
 import { useAudit } from '../context/AuditContext'
 import NewAuditModal from '../components/modals/NewAuditModal'
@@ -9,6 +10,8 @@ import ListSignModal from '../components/modals/ListSignModal'
 import ReportPreviewModal from '../features/preview/ReportPreview'
 import CapaPreviewModal from '../features/preview/CapaPreview'
 import { sameName } from '../utils/roles'
+
+const LIST_TTL = 3 * 60 * 1000
 
 const onExportList = async (rowsToExport, cat) => {
   const { exportListExcel } = await import('../utils/exportExcel')
@@ -27,6 +30,7 @@ export default function ListPage() {
 
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [qAuditee, setQAuditee] = useState('')
   const [qAuditor, setQAuditor] = useState('')
   const [qDept, setQDept] = useState('')
@@ -35,26 +39,70 @@ export default function ListPage() {
   const [signReq, setSignReq] = useState(null) // {id, role}
   const [previewId, setPreviewId] = useState(null)
   const [capaId, setCapaId] = useState(null)
+  const reqIdRef = useRef(0)
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  // Kunci cache per (user + role + kategori) agar tidak bocor antar sesi
+  const cacheKey = swrKey('list', { nik: user?.nik, activeRole, kategori: category })
+
+  /**
+   * Muat daftar audit.
+   *
+   * Perubahan penting vs versi lama:
+   *  - Hasil sukses di-cache, lalu saat kembali dari halaman lain list
+   *    tampil SEGERA dari cache (stale-while-revalidate), disusul refresh
+   *    diam-diam di background. Ini yang membuat list tidak "kosong".
+   *  - Kegagalan TIDAK menghapus data yang sudah tampil; hanya menampilkan
+   *    toast peringatan. (Versi lama: `catch { setRows([]) }` menghapus
+   *    semua baris -> tampak "Tidak ada data ditemukan".)
+   *  - `res.success === false` kini ditangani dengan pesan dari server,
+   *    bukan dibiarkan diam-diam kosong.
+   *  - `reqIdRef` menjamin hanya respons terakhir yang diterapkan, sehingga
+   *    dua permintaan bersamaan tidak saling menimpa dengan data basi.
+   */
+  const load = useCallback(async ({ silent = false, force = false } = {}) => {
+    const myId = ++reqIdRef.current
+    if (silent) setRefreshing(true)
+    else setLoading(true)
     try {
       // Server yang memfilter (auditor -> auditnya sendiri, auditee -> miliknya,
       // admin -> semua). Lihat handleGetList di Code.gs.
-      const res = await gasApi.getList({ nik: user?.nik, activeRole, kategori: category })
-      if (res.success) setRows((res.data || []).filter((d) => d.kategori === category))
-    } catch {
-      setRows([])
-      Swal.fire('Error', 'Gagal memuat data dari server', 'error')
+      const res = await swr('list', { nik: user?.nik, activeRole, kategori: category }, () =>
+        gasApi.getList({ nik: user?.nik, activeRole, kategori: category }),
+        { force },
+      )
+      if (myId !== reqIdRef.current) return // sudah ada permintaan lebih baru
+      if (!res?.success) {
+        Swal.fire('Gagal', res?.message || 'Server tidak dapat mengembalikan data.', 'error')
+        return
+      }
+      setRows((res.data || []).filter((d) => d.kategori === category))
+    } catch (err) {
+      if (myId !== reqIdRef.current) return
+      // Pertahankan baris yang sedang tampil; jangan setRows([]).
+      Swal.fire('Gagal memuat data', err?.message || 'Periksa koneksi, lalu coba muat ulang.', 'error')
     } finally {
-      setLoading(false)
+      if (myId === reqIdRef.current) {
+        setLoading(false)
+        setRefreshing(false)
+      }
     }
   }, [user, activeRole, category])
 
   useEffect(() => {
     if (ctxCategory !== category) setAudit({ category })
   }, [category, ctxCategory, setAudit])
-  useEffect(() => { load() }, [load])
+
+  // Render cache lebih dulu (jika ada), baru revalidate di background.
+  useEffect(() => {
+    const cached = swrRead(cacheKey, LIST_TTL)
+    if (cached?.success && Array.isArray(cached.data)) {
+      setRows(cached.data.filter((d) => d.kategori === category))
+      setLoading(false)
+      load({ silent: true }) // refresh diam-diam tanpa mengosongkan layar
+    } else {
+      load()
+    }
+  }, [load, cacheKey, category])
 
   const filtered = useMemo(() => rows.filter((item) => {
     if (qAuditee && !String(item.auditee).toLowerCase().includes(qAuditee.toLowerCase())) return false
@@ -76,7 +124,7 @@ export default function ListPage() {
       Swal.fire({ title: 'Menghapus...', didOpen: () => Swal.showLoading() })
       try {
         const res = await gasApi.deleteData(id, user?.nik)
-        if (res.success) { Swal.fire('Terhapus!', res.message, 'success'); load() }
+        if (res.success) { Swal.fire('Terhapus!', res.message, 'success'); load({ silent: true, force: true }) }
         else Swal.fire('Gagal', res.message, 'error')
       } catch { Swal.fire('Error', 'Gagal menghapus', 'error') }
     })
@@ -103,6 +151,9 @@ export default function ListPage() {
               <i className="fa-solid fa-file-excel" style={{ color: '#10b981' }} /> Export Excel
             </button>
           )}
+          <button className="btn btn-outline" onClick={() => load({ silent: true })} disabled={refreshing} title="Muat ulang data dari server">
+            <i className={`fa-solid fa-rotate ${refreshing ? 'fa-spin' : ''}`} /> Muat Ulang
+          </button>
           {!isAuditeeMode && (
             <button className="btn btn-primary" onClick={() => setShowNew(true)}>
               <i className="fa-solid fa-plus" /> Tambah Data
@@ -215,10 +266,10 @@ export default function ListPage() {
         }} />
       )}
       {signReq && (
-        <ListSignModal auditId={signReq.id} role={signReq.role} onClose={() => setSignReq(null)} onSaved={() => { setSignReq(null); load() }} />
+        <ListSignModal auditId={signReq.id} role={signReq.role} onClose={() => setSignReq(null)} onSaved={() => { setSignReq(null); load({ silent: true, force: true }) }} />
       )}
       {previewId && (
-        <ReportPreviewModal auditId={previewId} source="list" onClose={() => { setPreviewId(null); load() }} />
+        <ReportPreviewModal auditId={previewId} source="list" onClose={() => { setPreviewId(null); load({ silent: true, force: true }) }} />
       )}
       {capaId && <CapaPreviewModal auditId={capaId} onClose={() => setCapaId(null)} />}
     </div>
