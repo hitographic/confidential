@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs'
+import { paraphraseRow } from './paraphrase'
 
 function setBoxBorders(ws, startRow, endRow, startCol, endCol, outerStyle = 'double', innerVerticals = []) {
   for (let r = startRow; r <= endRow; r++) {
@@ -75,7 +76,7 @@ export async function exportItemExcel(detail) {
   ws.addRow(['NO.', 'HASIL PENGAMATAN', 'ELEMEN/KLAUSUL', 'KATEGORI'])
   ws.getRow(3).font = { bold: true }
   ;(detail.checklistData || []).forEach((q) => {
-    ws.addRow([q.no, q.hasilPengamatan || q.pertanyaan, q.kriteria || '', q.kategoriVal || ''])
+    ws.addRow([q.no, paraphraseRow(q) || q.pertanyaan, q.kriteria || '', q.kategoriVal || ''])
   })
   ws.columns.forEach((c) => { c.width = 28 })
   await downloadWorkbook(wb, `MGT-003-${detail.kategori}-${detail.auditeeName}.xlsx`)

@@ -1,3 +1,5 @@
+import { paraphraseRow } from '../../utils/paraphrase'
+
 export function getCapaFindings(checklistData) {
   return (checklistData || [])
     .filter((row) => {
@@ -9,12 +11,16 @@ export function getCapaFindings(checklistData) {
       if (!row.hasilPengamatan || String(row.hasilPengamatan).trim() === '') return false
       return true
     })
-    .map((row) => ({
-      nc: String(row.hasilPengamatan || '').trim(),
-      klausul: String(row.kriteria || '-').trim() || '-',
-      hasilPengamatan: String(row.hasilPengamatan || '').trim(),
-      kriteria: String(row.kriteria || '-').trim() || '-',
-    }))
+    .map((row) => {
+      // Kalimat temuan ikut terparafrasa (konsisten dgn kolom HASIL PENGAMATAN MGT-003)
+      const nc = paraphraseRow(row) || String(row.hasilPengamatan || '').trim()
+      return {
+        nc,
+        klausul: String(row.kriteria || '-').trim() || '-',
+        hasilPengamatan: nc,
+        kriteria: String(row.kriteria || '-').trim() || '-',
+      }
+    })
 }
 
 export function capaSemesterCode(kategori, tanggalObj) {

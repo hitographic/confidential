@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Swal from 'sweetalert2'
 import { gasApi } from '../../api/gasClient'
 import { useAuth } from '../../context/AuthContext'
+import { paraphraseRow } from '../../utils/paraphrase'
 
 const doExportPdf = (id, filename) =>
   import('../../utils/exportPdf').then((m) => m.exportPreviewPdf(id, filename))
@@ -189,7 +190,7 @@ export default function ReportPreviewModal({ auditId, draft, source = 'list', on
                     {rows.map((r, i) => (
                       <tr key={i} style={{ height: 1 }}>
                         <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{i + 1}</td>
-                        <td style={{ paddingLeft: 10 }}>{r.hasilPengamatan}</td>
+                        <td style={{ paddingLeft: 10 }}>{paraphraseRow(r)}</td>
                         <td style={{ textAlign: 'center' }}>{r.kriteria || '-'}</td>
                         <td style={{ textAlign: 'center' }}>{r.kategoriVal || '-'}</td>
                       </tr>
