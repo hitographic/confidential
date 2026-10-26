@@ -62,6 +62,10 @@ npm run dev            # http://localhost:5173
    https://hitographic.github.io/confidential/ . Pastikan `VITE_GAS_URL`
    di `.env.example` sudah benar (workflow menyalinnya jadi `.env` saat build).
 3. Jika deploy ulang GAS → cukup perbarui `VITE_GAS_URL` di `.env.example`, commit, push.
+4. **Custom domain:** situs juga dilayani di **https://confidential.my.id** (file `CNAME` di root).
+   Atur DNS di registrar: A `@` → `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`
+   dan CNAME `www` → `hitographic.github.io`; lalu di *Settings → Pages → Custom domain* isi
+   `confidential.my.id` dan centang *Enforce HTTPS* setelah DNS terverifikasi.
 
 ## Kembangkan fitur baru (contoh)
 
