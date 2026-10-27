@@ -18,7 +18,8 @@ export default function CropPhotoModal({ image, onCancel, onSave }) {
   }, [image])
 
   const save = () => {
-    const dataUrl = canvasRef.current.toDataURL('image/png')
+    // JPEG ~40KB per foto (vs PNG ratusan KB): hemat kuota autosave & payload upload
+    const dataUrl = canvasRef.current.toDataURL('image/jpeg', 0.85)
     onSave?.(dataUrl, caption.trim())
   }
 

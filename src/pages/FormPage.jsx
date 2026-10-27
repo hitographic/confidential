@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Swal from 'sweetalert2'
 import { gasApi } from '../api/gasClient'
@@ -9,10 +9,63 @@ import CropPhotoModal from '../components/modals/CropPhotoModal'
 import ReportPreviewModal from '../features/preview/ReportPreview'
 import { sameName } from '../utils/roles'
 
-const AUTOSAVE_KEY = 'matrika_autosave'
+const AUTOSAVE_PREFIX = 'matrika_autosave'
+const AUTOSAVE_LEGACY_KEY = 'matrika_autosave' // skema lama: sessionStorage tunggal
+const AUTOSAVE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // autosave basi dibuang setelah 7 hari
 
-function loadAutosave() {
-  try { return JSON.parse(sessionStorage.getItem(AUTOSAVE_KEY) || '{}') } catch { return {} }
+/**
+ * Kunci autosave per-form: tidak bocor antar form (beda auditee/dept/editId
+ * dapat kunci berbeda), dan bertahan refresh maupun tab baru (localStorage).
+ */
+function autosaveKey(editId, category, dept, auditee) {
+  return `${AUTOSAVE_PREFIX}:${editId || `${category || ''}|${dept || ''}|${auditee || ''}`}`
+}
+
+function readAutosave(key) {
+  try {
+    const raw = localStorage.getItem(key)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object') {
+        return { answers: parsed.answers || {}, photos: parsed.photos || {}, savedAt: parsed.savedAt || 0 }
+      }
+    }
+  } catch {}
+  // migrasi sekali dari skema lama (masih ada di sessionStorage)
+  try {
+    const legacy = JSON.parse(sessionStorage.getItem(AUTOSAVE_LEGACY_KEY) || 'null')
+    if (legacy && typeof legacy === 'object' && !Array.isArray(legacy)) {
+      return { answers: legacy, photos: {}, legacy: true }
+    }
+  } catch {}
+  return null
+}
+
+function writeAutosave(key, answers, photos) {
+  try {
+    localStorage.setItem(key, JSON.stringify({ v: 2, savedAt: Date.now(), answers, photos }))
+    return
+  } catch {}
+  // kuota penuh (terlalu banyak foto) -> tetap simpan jawaban saja
+  try { localStorage.setItem(key, JSON.stringify({ v: 2, savedAt: Date.now(), answers, photos: {} })) } catch {}
+}
+
+function clearAutosave(key) {
+  try { localStorage.removeItem(key) } catch {}
+  try { sessionStorage.removeItem(AUTOSAVE_LEGACY_KEY) } catch {}
+}
+
+/** Buang autosave basi agar kuota localStorage tidak cepat penuh. */
+function pruneAutosave() {
+  try {
+    Object.keys(localStorage).forEach((k) => {
+      if (!k.startsWith(`${AUTOSAVE_PREFIX}:`)) return
+      try {
+        const parsed = JSON.parse(localStorage.getItem(k) || '{}')
+        if (!parsed.savedAt || Date.now() - parsed.savedAt > AUTOSAVE_TTL_MS) localStorage.removeItem(k)
+      } catch { localStorage.removeItem(k) }
+    })
+  } catch {}
 }
 
 /**
@@ -31,6 +84,40 @@ export default function FormPage() {
   const [crop, setCrop] = useState(null) // {img, index}
   const [showPreview, setShowPreview] = useState(false)
   const [draftPayload, setDraftPayload] = useState(null)
+
+  const saveKey = autosaveKey(editId, category, dept, auditee)
+
+  // Autosave terbaru untuk di-flush saat komponen dilepas (navigasi keluar form)
+  const latestRef = useRef(null)
+  latestRef.current = { saveKey, answers, photos, ready: questions.length > 0 }
+
+  // buang autosave basi saat form dibuka
+  useEffect(() => { pruneAutosave() }, [])
+
+  // flush terakhir saat komponen unmount (tombol Batal/kembali)
+  useEffect(() => () => {
+    const s = latestRef.current
+    if (s?.ready) writeAutosave(s.saveKey, s.answers, s.photos)
+  }, [])
+
+  /**
+   * Pulihkan isian form dari autosave (refresh/tab baru tidak menghilangkan
+   * data). Kunci sudah di-scope per-form, jadi tidak mungkin nyasar.
+   * `base*` (opsional) = data dasar (mis. hasil loadEdit) yang ditimpa oleh
+   * isian tersimpan, karena autosave hanya memuat baris yang disentuh user.
+   */
+  const applyAutosave = (baseAnswers = null, basePhotos = null) => {
+    const saved = readAutosave(saveKey)
+    if (!saved) return false
+    const hasAnswers = Object.keys(saved.answers || {}).length > 0
+    const hasPhotos = Object.keys(saved.photos || {}).length > 0
+    if (!hasAnswers && !hasPhotos) return false
+    if (hasAnswers) setAnswers(baseAnswers ? { ...baseAnswers, ...saved.answers } : saved.answers)
+    if (hasPhotos) setPhotos(basePhotos ? { ...basePhotos, ...saved.photos } : saved.photos)
+    if (saved.legacy) { try { sessionStorage.removeItem(AUTOSAVE_LEGACY_KEY) } catch {} }
+    Swal.fire({ toast: true, position: 'top', icon: 'info', title: 'Isian sebelumnya dipulihkan', showConfirmButton: false, timer: 2200 })
+    return true
+  }
 
   /**
    * Kembali ke daftar audit.
@@ -69,8 +156,7 @@ export default function FormPage() {
       if (res.success) {
         setQuestions(res.data || [])
         setAudit({ questions: res.data || [] })
-        const saved = loadAutosave()
-        if (saved && Object.keys(saved).length) setAnswers(saved)
+        applyAutosave()
       }
     } catch {
       setQuestions([
@@ -119,8 +205,8 @@ export default function FormPage() {
           keterangan: (q.hasilPengamatan === q.pertanyaan || q.hasilPengamatan === 'Sesuai') ? '' : (q.hasilPengamatan || ''),
         }
       })
-      const saved = loadAutosave()
-      setAnswers({ ...restored, ...saved })
+      setAnswers(restored)
+      applyAutosave(restored, photoMap) // isian tersimpan (jika ada) menimpa data server
     } catch {
       Swal.close()
       Swal.fire('Error', 'Belum tersambung ke backend secara sempurna', 'error')
@@ -129,11 +215,12 @@ export default function FormPage() {
     }
   }
 
-  // autosave
+  // autosave — debounced ke localStorage (tahan refresh & tab baru), ikut foto
   useEffect(() => {
     if (!questions.length) return
-    try { sessionStorage.setItem(AUTOSAVE_KEY, JSON.stringify(answers)) } catch {}
-  }, [answers, questions.length])
+    const t = setTimeout(() => writeAutosave(saveKey, answers, photos), 400)
+    return () => clearTimeout(t)
+  }, [answers, photos, questions.length, saveKey])
 
   const setAnswer = (idx, patch) => {
     setAnswers((prev) => {
@@ -148,6 +235,26 @@ export default function FormPage() {
   }
 
   // --- foto ---
+  /**
+   * Sumber foto: "Ambil Foto" membuka kamera perangkat langsung
+   * (input capture), "Dari Galeri" memakai pemilih file biasa.
+   */
+  const pickPhoto = (index) => {
+    Swal.fire({
+      title: 'Tambah Foto',
+      text: 'Ambil foto langsung dengan kamera, atau pilih foto yang sudah ada dari galeri.',
+      showCancelButton: true,
+      cancelButtonText: 'Batal',
+      showDenyButton: true,
+      denyButtonText: '<i class="fa-regular fa-image"></i> Dari Galeri',
+      confirmButtonText: '<i class="fa-solid fa-camera"></i> Ambil Foto',
+      reverseButtons: true,
+    }).then((r) => {
+      if (r.isConfirmed) document.getElementById(`photoCam_${index}`)?.click()
+      else if (r.isDenied) document.getElementById(`photoInput_${index}`)?.click()
+    })
+  }
+
   const onFile = (e, index) => {
     const file = e.target.files?.[0]
     e.target.value = ''
@@ -265,7 +372,7 @@ export default function FormPage() {
       const res = await gasApi.saveDraft(payload) // backend menentukan Draft/Submitted dari action; saveDraft dipakai untuk simpan sementara
       if (res.success) {
         Swal.fire('Berhasil!', res.message, 'success').then(() => {
-          sessionStorage.removeItem(AUTOSAVE_KEY)
+          clearAutosave(saveKey)
           // Data baru saja berubah -> buang cache list agar halaman daftar
           // mengambil data segar (bukan menampilkan cache yang sudah basi).
           swrInvalidate('list')
@@ -366,12 +473,13 @@ export default function FormPage() {
                           </div>
                         </div>
                       ))}
-                      <div className="photo-add-btn" onClick={() => document.getElementById(`photoInput_${index}`)?.click()} title="Upload/Take Foto">
+                      <div className="photo-add-btn" onClick={() => pickPhoto(index)} title="Ambil Foto / Galeri">
                         <i className="fa-solid fa-camera" />
                       </div>
                     </div>
                     {needPhoto && <span className="photo-required-badge">Wajib foto</span>}
                     <input type="file" id={`photoInput_${index}`} accept="image/*" style={{ display: 'none' }} onChange={(e) => onFile(e, index)} />
+                    <input type="file" id={`photoCam_${index}`} accept="image/*" capture="environment" style={{ display: 'none' }} onChange={(e) => onFile(e, index)} />
                   </td>
                 </tr>
               )
@@ -392,7 +500,7 @@ export default function FormPage() {
           source="form"
           onClose={() => setShowPreview(false)}
           onSaved={() => {
-            sessionStorage.removeItem(AUTOSAVE_KEY)
+            clearAutosave(saveKey)
             swrInvalidate('list')
             goList()
           }}

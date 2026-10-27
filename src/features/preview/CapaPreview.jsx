@@ -81,6 +81,26 @@ export default function CapaPreviewModal({ auditId, onClose }) {
   while (padCapa.length < 3) padCapa.push({ nc: '', klausul: '', correction: '', indikasiPenyebab: '', correctiveAction: '', targetSelesai: '', photos: [] })
 
   // --- foto perbaikan ---
+  /**
+   * Sumber foto perbaikan: "Ambil Foto" langsung ke kamera (input capture),
+   * "Dari Galeri" ke pemilih file biasa.
+   */
+  const pickPhoto = (findingIdx) => {
+    Swal.fire({
+      title: 'Foto Perbaikan',
+      text: 'Ambil foto langsung dengan kamera, atau pilih foto yang sudah ada dari galeri.',
+      showCancelButton: true,
+      cancelButtonText: 'Batal',
+      showDenyButton: true,
+      denyButtonText: '<i class="fa-regular fa-image"></i> Dari Galeri',
+      confirmButtonText: '<i class="fa-solid fa-camera"></i> Ambil Foto',
+      reverseButtons: true,
+    }).then((r) => {
+      if (r.isConfirmed) document.getElementById(`capaPhotoCam_${findingIdx}`)?.click()
+      else if (r.isDenied) document.getElementById(`capaPhotoInput_${findingIdx}`)?.click()
+    })
+  }
+
   const onFile = (e, findingIdx) => {
     const file = e.target.files?.[0]
     e.target.value = ''
@@ -313,12 +333,13 @@ export default function CapaPreviewModal({ auditId, onClose }) {
                                   ))}
                                   <div
                                     style={{ width: 72, height: 72, border: '2px dashed #cbd5e1', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', fontSize: 11 }}
-                                    onClick={() => document.getElementById(`capaPhotoInput_${idx}`)?.click()}
-                                    title="Upload foto perbaikan"
+                                    onClick={() => pickPhoto(idx)}
+                                    title="Ambil Foto / Galeri"
                                   >
                                     <i className="fa-solid fa-camera" />
                                   </div>
                                   <input type="file" id={`capaPhotoInput_${idx}`} accept="image/*" style={{ display: 'none' }} onChange={(e) => onFile(e, idx)} />
+                                  <input type="file" id={`capaPhotoCam_${idx}`} accept="image/*" capture="environment" style={{ display: 'none' }} onChange={(e) => onFile(e, idx)} />
                                 </div>
                               </td>
                             </tr>

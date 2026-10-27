@@ -92,6 +92,13 @@ export function AuthProvider({ children }) {
     sessionStorage.removeItem(ACTIVE_ROLE_KEY)
     sessionStorage.removeItem('matrika_state')
     sessionStorage.removeItem('matrika_autosave')
+    // autosave form (localStorage, per-form) ikut dibersihkan agar tidak ada
+    // sisa isian/formulaire user lain di perangkat bersama.
+    try {
+      Object.keys(localStorage)
+        .filter((k) => k === 'matrika_autosave' || k.startsWith('matrika_autosave:'))
+        .forEach((k) => localStorage.removeItem(k))
+    } catch {}
     setUser(null)
     setActiveRoleRaw('')
   }
