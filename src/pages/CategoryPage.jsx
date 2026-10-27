@@ -19,9 +19,15 @@ export default function CategoryPage() {
       </h2>
       <div className="menu-grid">
         {CATEGORIES.map((c) => (
-          <div key={c.key} className="glass-card menu-card" onClick={() => open(c.key)}>
+          <div
+            key={c.key}
+            className={`glass-card menu-card${c.disabled ? ' menu-card--disabled' : ''}`}
+            aria-disabled={c.disabled ? 'true' : undefined}
+            onClick={c.disabled ? undefined : () => open(c.key)}
+          >
             <div className={`menu-icon icon3d ${c.cls}`}><i className={`fa-solid ${c.icon}`} /></div>
             <h3>{c.label}</h3>
+            {c.disabled && <span className="menu-soon">Segera Hadir</span>}
           </div>
         ))}
       </div>

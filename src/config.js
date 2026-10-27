@@ -5,8 +5,8 @@ export const GAS_URL =
 
 export const CATEGORIES = [
   { key: 'Halal', icon: 'fa-leaf', cls: 'halal', label: 'Halal' },
-  { key: 'FSSC', icon: 'fa-shield-halved', cls: 'fssc', label: 'FSSC' },
-  { key: 'PRP', icon: 'fa-industry', cls: 'prp', label: 'PRP' },
-  { key: 'PMR', icon: 'fa-wrench', cls: 'pmr', label: 'PMR' },
-  { key: 'SMK3', icon: 'fa-helmet-safety', cls: 'smk3', label: 'SMK3' },
+  { key: 'FSSC', icon: 'fa-shield-halved', cls: 'fssc', label: 'FSSC', disabled: true },
+  { key: 'PRP', icon: 'fa-industry', cls: 'prp', label: 'PRP', disabled: true },
+  { key: 'PMR', icon: 'fa-wrench', cls: 'pmr', label: 'PMR', disabled: true },
+  { key: 'SMK3', icon: 'fa-helmet-safety', cls: 'smk3', label: 'SMK3', disabled: true },
 ]
