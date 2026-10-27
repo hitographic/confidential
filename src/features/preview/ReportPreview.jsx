@@ -68,6 +68,12 @@ export default function ReportPreviewModal({ auditId, draft, source = 'list', on
   const [auditorImg, setAuditorImg] = useState('')
   const [auditeeImg, setAuditeeImg] = useState('')
 
+  // --- zoom preview (in/out) ---
+  // Default: pas-lebar layar (0.4 di HP, 1.0 di desktop). Klik angka % = kembali fit.
+  const fitZoom = () => (typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches ? 0.4 : 1)
+  const clampZoom = (z) => Math.min(1.6, Math.max(0.3, Math.round(z * 100) / 100))
+  const [zoom, setZoom] = useState(fitZoom)
+
   useEffect(() => {
     if (draft) return
     if (!auditId) return
@@ -135,7 +141,24 @@ export default function ReportPreviewModal({ auditId, draft, source = 'list', on
           </div>
         </div>
 
-        <div className="preview-wrapper">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-light)' }}>
+            <i className="fa-solid fa-magnifying-glass" style={{ marginRight: 6 }} />Zoom dokumen
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button className="btn btn-outline btn-sm" onClick={() => setZoom((z) => clampZoom(z - 0.15))} title="Perkecil (zoom out)">
+              <i className="fa-solid fa-minus" />
+            </button>
+            <button className="btn btn-outline btn-sm" onClick={() => setZoom(fitZoom())} style={{ minWidth: 64 }} title="Kembali ke ukuran muat (fit)">
+              {Math.round(zoom * 100)}%
+            </button>
+            <button className="btn btn-outline btn-sm" onClick={() => setZoom((z) => clampZoom(z + 0.15))} title="Perbesar (zoom in)">
+              <i className="fa-solid fa-plus" />
+            </button>
+          </div>
+        </div>
+
+        <div className="preview-wrapper" style={{ zoom: String(zoom) }}>
           <div id="previewArea">
             <div style={{ border: '2px solid black', display: 'flex', flexDirection: 'column', flexGrow: 1, boxSizing: 'border-box' }}>
               <div style={{ display: 'flex', borderBottom: '2px solid black' }}>

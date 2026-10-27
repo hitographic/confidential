@@ -635,6 +635,15 @@ select.search-input {
 }
 #previewTableBody td:last-child { border-right: none; }
 
+/* Preview di HP: area gulir dua arah (vertical + horizontal) untuk zoom in/out.
+   Zoom dikendalikan tombol −/%/+ di toolbar modal (lihat ReportPreview.jsx). */
+.preview-wrapper {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: 66dvh;
+  border-radius: 10px;
+}
+
 #capaPreviewArea {
   background: white; color: black;
   font-family: 'Times New Roman', Times, serif;
@@ -740,7 +749,7 @@ select.search-input {
   #navbar, .container, footer, .bottom-nav { display: none !important; }
   #modalPreview { position: absolute; top: 0; left: 0; width: 100vw !important; background: none; display: flex !important; padding: 0; margin: 0; align-items: flex-start !important; justify-content: center !important; opacity: 1 !important; visibility: visible !important; overflow: visible !important; }
   .modal-content { box-shadow: none; padding: 0; width: 100vw !important; max-width: 100%; max-height: none; overflow: visible !important; transform: none !important; display: block !important; }
-  .preview-wrapper { padding: 0 !important; margin: 0 !important; border: none !important; width: 100% !important; max-height: none !important; overflow: visible !important; display: block !important; }
+  .preview-wrapper { padding: 0 !important; margin: 0 !important; border: none !important; width: 100% !important; max-height: none !important; overflow: visible !important; display: block !important; zoom: 1 !important; }
   #previewArea { width: 100% !important; height: 1123px !important; max-height: 1123px !important; margin: 0 !important; padding: 15mm !important; box-sizing: border-box !important; display: flex !important; flex-direction: column; overflow: hidden !important; page-break-after: always !important; page-break-inside: avoid !important; }
   #previewArea td, #previewArea th { padding: 4px !important; font-size: 11px; }
   .btn, div[onclick], .modal-content>div:first-child { display: none !important; }
