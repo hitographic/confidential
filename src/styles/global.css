@@ -73,7 +73,8 @@ body {
   padding-bottom: 92px; /* ruang untuk bottom-nav mobile */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overscroll-behavior-y: none;
+  /* catatan: jangan pakai overscroll-behavior-y: none di sini —
+     itu mematikan gestur pull-to-refresh (tarik ke bawah untuk muat ulang). */
 }
 
 .hidden { display: none !important; }

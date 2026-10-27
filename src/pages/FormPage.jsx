@@ -407,8 +407,18 @@ export default function FormPage() {
           </button>
           <h2 className="list-title">Form Checklist: <span style={{ color: 'var(--secondary)' }}>{category}{dept ? ` - ${dept}` : ''}</span></h2>
         </div>
-        <div className="list-header-actions" style={{ fontWeight: 600, color: 'var(--text-light)', fontSize: 13 }}>
-          Auditee: <span style={{ color: 'var(--text-dark)' }}>{auditee}</span>
+        <div className="list-header-actions" style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 600, color: 'var(--text-light)', fontSize: 13 }}>
+          <span>
+            Auditee: <span style={{ color: 'var(--text-dark)' }}>{auditee}</span>
+          </span>
+          <button
+            className="btn btn-outline"
+            style={{ padding: '7px 11px', fontSize: 13 }}
+            onClick={() => window.location.reload()}
+            title="Muat ulang halaman — isian tersimpan otomatis dan akan dipulihkan"
+          >
+            <i className="fa-solid fa-rotate" />
+          </button>
         </div>
       </div>
 
