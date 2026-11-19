@@ -60,7 +60,9 @@ export default function Cqa75Page() {
   const [q, setQ] = useState('')
   const [filter, setFilter] = useState('semua') // semua | belum | sudah
   const [view, setView] = useState('laporan') // laporan | ringkas
-  const [previewFit, setPreviewFit] = useState(true)
+  // Desktop default 1:1 (ukuran font & layout persis Excel, gulir horizontal
+  // seperti Excel sendiri); HP default "Pas" agar muat di layar sempit.
+  const [previewFit, setPreviewFit] = useState(() => typeof window === 'undefined' || window.innerWidth <= 900)
   const [spot, setSpot] = useState(true)
   const [mtab, setMtab] = useState('file') // file | nama | preview
   const [toasts, setToasts] = useState([])
@@ -434,6 +436,9 @@ export default function Cqa75Page() {
       </nav>
 
       <div className="layout" data-mtab={mtab}>
+        {/* SIDEBAR — file + slot/nama digabung jadi 1 kolom agar preview
+            Excel selebar mungkin (zoom Pas mendekati 1:1). */}
+        <div className="pane pane-side">
         {/* KOLOM 1 — FILE DARI DRIVE */}
         <div className="pane pane-file">
           <div className="card">
@@ -602,6 +607,7 @@ export default function Cqa75Page() {
             )}
           </div>
         </div>
+        </div>{/* /pane-side */}
 
         {/* KOLOM 3 — EXPORT (admin) + PREVIEW */}
         <div className="pane pane-preview">

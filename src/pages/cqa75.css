@@ -17,6 +17,13 @@
   --c75-radius: 12px;
   color: var(--c75-txt);
   font-size: 14px;
+  /* Full-bleed: keluar dari container 1080px agar preview Excel muat
+     seluas mungkin (zoom "Pas" mendekati 1:1 — font & layout sama asli).
+     Pakai margin, BUKAN transform, supaya .toasts (position: fixed)
+     tetap menempel di viewport. */
+  width: calc(100vw - 40px);
+  max-width: 1800px;
+  margin-left: calc((100% - (100vw - 40px)) / 2);
 }
 .c75-page *,
 .c75-page *::before,
@@ -102,14 +109,22 @@
   z-index: 40;
 }
 
-/* ===== Layout 3 kolom ===== */
+/* ===== Layout: sidebar (file + nama) | preview seluas mungkin =====
+   Preview Excel butuh ~1433px agar tampil 1:1 seperti aslinya,
+   jadi sidebar digabung jadi 1 kolom dan preview ambil sisa lebar. */
 .c75-page .layout {
   display: grid;
-  grid-template-columns: 255px 295px minmax(0, 1fr);
+  grid-template-columns: 300px minmax(0, 1fr);
   gap: 12px;
   align-items: start;
 }
 .c75-page .pane { min-width: 0; }
+.c75-page .pane-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
 .c75-page .card {
   background: var(--c75-panel);
   border: 1px solid var(--c75-line);
@@ -362,8 +377,15 @@
 }
 .c75-page .xpagetag { background: #f8fafc; border-bottom: 1px solid var(--c75-line); padding: 6px 12px; font-size: 12px; font-weight: 700; }
 .c75-page .xtable-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; background: #fff; }
-.c75-page table.xsheet { border-collapse: collapse; table-layout: fixed; background: #fff; font-family: Calibri, Arial, sans-serif; }
-.c75-page table.xsheet td { background-clip: padding-box; }
+/* Font default Excel (Calibri 11pt) utk sel kosong — global.css memaksa
+   `*` = Plus Jakarta Sans, jadi harus di-override eksplisit di sini.
+   Sel bergaya tetap menang dari inline style-nya sendiri. */
+.c75-page table.xsheet { border-collapse: collapse; table-layout: fixed; background: #fff; font-family: Calibri, Arial, sans-serif; font-size: 11pt; }
+.c75-page table.xsheet td { background-clip: padding-box; font-family: Calibri, Arial, sans-serif; font-size: 11pt; }
+/* Div teks wrap di dalam sel: rule `*` global.css menimpa warisan font sel,
+   jadi family Calibri harus dideklarasikan ulang di sini (ukuran TIDAK di-set
+   agar ukuran font inline dari file Excel tetap dipakai). */
+.c75-page table.xsheet .xcell { font-family: Calibri, Arial, sans-serif; }
 .c75-page .xcell { width: 100%; }
 .c75-page .xlanerow td { vertical-align: bottom; }
 .c75-page .xlane { position: relative; width: 100%; }
@@ -462,14 +484,6 @@
   from { opacity: 0; transform: translateY(8px); }
 }
 
-/* ===== Tablet: 2 kolom ===== */
-@media (max-width: 1200px) and (min-width: 901px) {
-  .c75-page .layout { grid-template-columns: 300px minmax(0, 1fr); }
-  .c75-page .pane-file { grid-column: 1; grid-row: 1; }
-  .c75-page .pane-nama { grid-column: 1; grid-row: 2; }
-  .c75-page .pane-preview { grid-column: 2; grid-row: 1 / span 2; }
-}
-
 /* ===== HP ===== */
 @media (max-width: 900px) {
   .c75-page header.top { padding: 10px 12px; gap: 8px; }
@@ -504,7 +518,11 @@
   }
   .c75-page .mtab button.on .n { background: rgba(255, 255, 255, 0.2); }
 
+  /* Kembali ke lebar container biasa (tanpa full-bleed) */
+  .c75-page { width: 100%; margin-left: 0; }
   .c75-page .layout { grid-template-columns: minmax(0, 1fr); gap: 10px; padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)); }
+  /* Sidebar dibuka agar tab File/TTD/Preview mengontrol tiap pane langsung */
+  .c75-page .pane-side { display: contents; }
   .c75-page .layout[data-mtab='file'] .pane-nama,
   .c75-page .layout[data-mtab='file'] .pane-preview { display: none; }
   .c75-page .layout[data-mtab='nama'] .pane-file,
