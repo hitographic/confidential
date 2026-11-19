@@ -30,6 +30,12 @@ export default function CategoryPage() {
             {c.disabled && <span className="menu-soon">Segera Hadir</span>}
           </div>
         ))}
+        {/* Tools non-kategori: tanda tangan Form CQA-75 (berlaku untuk semua role) */}
+        <div className="glass-card menu-card" onClick={() => navigate('/CQA-75')}>
+          <div className="menu-icon icon3d teal"><i className="fa-solid fa-clipboard-check" /></div>
+          <h3>Form CQA-75</h3>
+          <span className="menu-badge-tool">Tanda Tangan</span>
+        </div>
       </div>
     </div>
   )

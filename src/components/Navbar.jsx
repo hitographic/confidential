@@ -62,6 +62,9 @@ export default function Navbar() {
                 </div>
               </div>
             )}
+            <button className="dropdown-item" onClick={() => { setOpen(false); navigate('/CQA-75') }}>
+              <i className="fa-solid fa-clipboard-check" /> Form CQA-75
+            </button>
             <button className="dropdown-item" onClick={() => { setOpen(false); setTimeout(() => setShowSig(true), 150) }}>
               <i className="fa-solid fa-pen-nib" /> Ganti Tanda Tangan
             </button>

@@ -43,6 +43,7 @@ function withCacheBust(url) {
 const READ_ACTIONS = new Set([
   'login', 'getChecklist', 'getDepartemen', 'getList', 'getDetail',
   'getSignatureInfo', 'fetchImages', 'getVersion',
+  'getCqa75Meta', 'getCqa75Files',
 ])
 
 /** Timeout agar permintaan yang menggantung (GAS cold start / redirect
@@ -170,6 +171,16 @@ export const gasApi = {
   },
 
   getVersion: () => post('getVersion', {}),
+
+  // ---- Form CQA-75 (halaman /CQA-75) ----
+  // Meta: identitas + Nama Tanda Tangan (kolom E) + daftar akun untuk
+  // mencocokkan nama di file + status TTD per orang (sheet cqa75_state).
+  getCqa75Meta: (nik) => post('getCqa75Meta', { nik }),
+  // Daftar file .xlsx dari Drive (CQA-75/2026/Semester 2) beserta isi base64.
+  getCqa75Files: () => post('getCqa75Files', {}),
+  // Isi slot TTD sendiri / cabut — divalidasi server via sheet user.
+  fillCqa75: (nik) => post('fillCqa75', { nik }),
+  unfillCqa75: (nik, targetNik) => post('unfillCqa75', { nik, targetNik }),
 }
 
 export default gasApi

@@ -10,6 +10,10 @@ function doGet() {
 const FOLDER_ID = "1xjVi1fxtIcZm28BoPKSyFoKJA_8-Elei";
 const SHEET_ID = "1Cmccso6hkwHPJNX1jZy5arK5OAOLnhMBCp89JwJBG50";
 
+// Folder sumber file Form CQA-75 — RELATIF terhadap FOLDER_ID.
+// Diubah bila semester/tahun berganti, mis. ["CQA-75", "2027", "Semester 1"].
+const CQA75_FOLDER_PATH = ["CQA-75", "2026", "Semester 2"];
+
 // Hak akses getList:
 //   true  -> Auditor HANYA melihat audit yang ia pegang sendiri (disarankan)
 //   false -> Auditor melihat SEMUA audit pada kategorinya
@@ -109,6 +113,10 @@ function getSheet(sheetName) {
     } else if (sheetName === 'list_departemen') {
        sheet = ss.insertSheet(sheetName);
        sheet.appendRow(['ID', 'Kategori', 'Departemen']);
+    } else if (sheetName === 'cqa75_state') {
+       // Status "sudah TTD" per NIK untuk halaman Form CQA-75.
+       sheet = ss.insertSheet(sheetName);
+       sheet.appendRow(['NIK', 'Nama_TTD', 'Status', 'Updated_At']);
     }
   }
   // Pastikan kolom Lampiran (L) & CAPA (M) ada untuk sheet data_pengamatan
@@ -873,7 +881,7 @@ function migratePasswordsToHash() {
 // Naikkan string ini setiap kali deploy. Cek via action "getVersion".
 function handleGetVersion() {
   return cachedGet('version', CACHE_TTL.version, function () {
-    return { success: true, version: "2026-10-24-cache-v4" };
+    return { success: true, version: "2026-11-19-cqa75-v1" };
   });
 }
 
@@ -898,6 +906,265 @@ function handleFetchImages(fileIds) {
     });
     return { success: true, images: results };
   } catch(e) {
+    return { success: false, message: e.message };
+  }
+}
+
+/* ------------------------------------------------------------------------
+ * CQA-75 — halaman tanda tangan Form CQA-75 (Confidential → /CQA-75)
+ *
+ * Alur:
+ *   1. File .xlsx diambil dari Drive: FOLDER_ID/CQA-75/2026/Semester 2
+ *      (lihat CQA75_FOLDER_PATH) — bukan upload user.
+ *   2. Slot TADI diisi oleh user SENDIRI, dicocokkan lewat kolom E sheet
+ *      "user" (Nama Tanda Tangan) — lihat handleFillCqa75.
+ *   3. Gambar TTD diambil dari signatures_db (hasil menu Ganti Tanda Tangan);
+ *      tidak ada alur menggambar baru di halaman ini.
+ *   4. Export (ZIP/Excel/PDF) hanya ditampilkan untuk role=admin di frontend.
+ *
+ * State disimpan di sheet `cqa75_state` (1 baris per NIK) agar admin melihat
+ * progres semua orang dari perangkatnya sendiri.
+ * ---------------------------------------------------------------------- */
+
+// Kunci nama versi frontend (normKey): lower-case + rapikan spasi.
+function normNameKey(s) {
+  return String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+// Nama Tanda Tangan (kolom E) milik sebuah NIK. '' bila belum diatur.
+function getUserNamaTtd(nik) {
+  if (!nik) return '';
+  const sheet = getSheet("user");
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(nik).trim()) {
+      return String(data[i][4] || '').trim();
+    }
+  }
+  return '';
+}
+
+// nik -> url TTD terdaftar (hanya yang valid & bukan pesan error upload).
+function loadCqa75Signatures() {
+  const sheet = getSheet("signatures_db");
+  const data = sheet.getDataRange().getValues();
+  const map = {};
+  for (let i = 1; i < data.length; i++) {
+    const nik = String(data[i][0] || '').trim();
+    const url = String(data[i][1] || '').trim();
+    if (nik && url && !/^error/i.test(url)) map[nik] = url;
+  }
+  return map;
+}
+
+// Ekstrak ID file Drive dari URL thumbnail/link; '' bila bukan URL Drive.
+function driveFileIdFromUrl(url) {
+  const s = String(url || '');
+  const m = /[?&]id=([a-zA-Z0-9_-]+)/.exec(s);
+  return m ? m[1] : '';
+}
+
+// nik -> { filledAt } untuk yang sudah mengklik "Terapkan TTD".
+function loadCqa75State() {
+  const sheet = getSheet("cqa75_state");
+  const data = sheet.getDataRange().getValues();
+  const map = {};
+  for (let i = 1; i < data.length; i++) {
+    const nik = String(data[i][0] || '').trim();
+    if (nik && String(data[i][2] || '').trim().toLowerCase() === 'filled') {
+      map[nik] = { filledAt: data[i][3] || '' };
+    }
+  }
+  return map;
+}
+
+// Upsert status filled per NIK (filled=false -> hapus barisnya).
+function setCqa75Filled(nik, namaTtd, filled) {
+  const sheet = getSheet("cqa75_state");
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(nik).trim()) {
+      if (filled) {
+        sheet.getRange(i + 1, 1, 1, 4).setValues([[nik, namaTtd, 'filled', new Date()]]);
+      } else {
+        sheet.deleteRow(i + 1);
+      }
+      return;
+    }
+  }
+  if (filled) sheet.appendRow([nik, namaTtd, 'filled', new Date()]);
+}
+
+// Folder sumber file CQA-75; null bila path belum ada di Drive.
+function getCqa75Folder() {
+  let folder = DriveApp.getFolderById(FOLDER_ID);
+  for (let i = 0; i < CQA75_FOLDER_PATH.length; i++) {
+    const it = folder.getFoldersByName(CQA75_FOLDER_PATH[i]);
+    if (!it.hasNext()) return null;
+    folder = it.next();
+  }
+  return folder;
+}
+
+/**
+ * Meta halaman CQA-75 untuk satu user:
+ *   me       — identitas + Nama Tanda Tangan + status TTD sendiri
+ *   accounts — semua akun ber-kolom-E, untuk dicocokkan dengan nama di file.
+ * Gambar TTD (sigUrl/sigFileId) HANYA dibocorkan untuk slot yang sudah
+ * diisi + milik sendiri; sisanya hanya boolean hasSig.
+ */
+function handleGetCqa75Meta(nik) {
+  try {
+    const user = getUserByNik(nik);
+    if (!user) return { success: false, message: "User tidak ditemukan. Silakan login ulang." };
+
+    const sigMap = loadCqa75Signatures();
+    const state = loadCqa75State();
+    const namaTtd = getUserNamaTtd(nik);
+    const myUrl = sigMap[nik] || '';
+    const myState = state[nik];
+
+    const me = {
+      nik: user.nik,
+      nama: user.nama,
+      roles: user.roles,
+      isAdmin: isAdminUser(user),
+      namaTtd: namaTtd,
+      hasSig: !!myUrl,
+      sigUrl: myUrl,
+      sigFileId: driveFileIdFromUrl(myUrl),
+      filled: !!myState,
+      filledAt: myState ? myState.filledAt : ''
+    };
+
+    // Daftar akun yang punya Nama Tanda Tangan (kolom E).
+    const us = getSheet("user").getDataRange().getValues();
+    const byKey = {};
+    const accounts = [];
+    for (let i = 1; i < us.length; i++) {
+      const aNik = String(us[i][0] || '').trim();
+      const aNama = String(us[i][2] || '').trim();
+      const aTtd = String(us[i][4] || '').trim();
+      if (!aNik || !aTtd) continue;
+      const key = normNameKey(aTtd);
+      const aUrl = sigMap[aNik] || '';
+      const st = state[aNik];
+      const isMe = aNik === user.nik;
+      const entry = {
+        nameKey: key,
+        namaTtd: aTtd,
+        nama: aNama,
+        nik: aNik,
+        hasSig: !!aUrl,
+        filled: !!st,
+        filledAt: st ? st.filledAt : '',
+        sigUrl: (st || isMe) ? aUrl : '',
+        sigFileId: (st || isMe) ? driveFileIdFromUrl(aUrl) : ''
+      };
+      // Nama_TTD kembar: yang punya TTD terdaftar lebih dulu diprioritaskan.
+      if (byKey[key]) {
+        if (entry.hasSig && !byKey[key].hasSig) {
+          const idx = accounts.indexOf(byKey[key]);
+          accounts[idx] = entry;
+          byKey[key] = entry;
+        }
+        continue;
+      }
+      byKey[key] = entry;
+      accounts.push(entry);
+    }
+
+    return {
+      success: true,
+      path: CQA75_FOLDER_PATH.join('/'),
+      me: me,
+      accounts: accounts
+    };
+  } catch (e) {
+    return { success: false, message: e.message };
+  }
+}
+
+// Semua file .xlsx di folder CQA-75, lengkap dengan isi base64-nya.
+function handleGetCqa75Files() {
+  try {
+    const folder = getCqa75Folder();
+    if (!folder) {
+      return {
+        success: false,
+        message: "Folder tidak ditemukan: " + CQA75_FOLDER_PATH.join('/') +
+          ". Buat folder tersebut di Drive (folder induk: Confidential)."
+      };
+    }
+    const files = [];
+    const it = folder.getFiles();
+    while (it.hasNext()) {
+      const f = it.next();
+      const name = f.getName();
+      if (!/\.xlsx?$/i.test(name)) continue;
+      try {
+        files.push({
+          id: f.getId(),
+          name: name,
+          base64: Utilities.base64Encode(f.getBlob().getBytes())
+        });
+      } catch (e) {
+        Logger.log('[cqa75] gagal membaca "' + name + '": ' + e.message);
+      }
+    }
+    files.sort(function (a, b) { return a.name.localeCompare(b.name); });
+    return { success: true, path: CQA75_FOLDER_PATH.join('/'), files: files };
+  } catch (e) {
+    return { success: false, message: e.message };
+  }
+}
+
+// User mengklik "Terapkan TTD saya" — hanya untuk slot namanya sendiri.
+function handleFillCqa75(nik) {
+  try {
+    const user = getUserByNik(nik);
+    if (!user) return { success: false, message: "User tidak ditemukan. Silakan login ulang." };
+
+    const namaTtd = getUserNamaTtd(nik);
+    if (!namaTtd) {
+      return {
+        success: false,
+        message: "Nama Tanda Tangan belum diatur di akun Anda. Hubungi admin untuk mengisi kolom \"Nama Tanda Tangan\"."
+      };
+    }
+    const sigMap = loadCqa75Signatures();
+    if (!sigMap[nik]) {
+      return {
+        success: false,
+        message: "TTD Anda belum terdaftar. Daftarkan dulu lewat menu \"Ganti Tanda Tangan\"."
+      };
+    }
+
+    setCqa75Filled(nik, namaTtd, true);
+    logAuditTrail("CQA75_FILL", nik, "", namaTtd, "");
+    bumpDataVersion();
+    return { success: true, filled: true, namaTtd: namaTtd, message: "TTD diterapkan ke semua slot Anda." };
+  } catch (e) {
+    return { success: false, message: e.message };
+  }
+}
+
+// Cabut TTD sendiri; admin juga boleh mencabut milik orang lain (koreksi).
+function handleUnfillCqa75(nik, targetNik) {
+  try {
+    const user = getUserByNik(nik);
+    if (!user) return { success: false, message: "User tidak ditemukan. Silakan login ulang." };
+    const target = String(targetNik || nik).trim();
+    if (target !== String(nik).trim() && !isAdminUser(user)) {
+      return { success: false, message: "Hanya admin yang boleh mencabut TTD orang lain." };
+    }
+    if (!getUserByNik(target)) return { success: false, message: "User tidak ditemukan." };
+
+    setCqa75Filled(target, '', false);
+    logAuditTrail("CQA75_UNFILL", nik, "", target, "");
+    bumpDataVersion();
+    return { success: true, filled: false, message: "TTD dicabut." };
+  } catch (e) {
     return { success: false, message: e.message };
   }
 }
@@ -962,6 +1229,18 @@ function doPost(e) {
         break;
       case "getVersion":
         result = handleGetVersion();
+        break;
+      case "getCqa75Meta":
+        result = handleGetCqa75Meta(postData.nik);
+        break;
+      case "getCqa75Files":
+        result = handleGetCqa75Files();
+        break;
+      case "fillCqa75":
+        result = handleFillCqa75(postData.nik);
+        break;
+      case "unfillCqa75":
+        result = handleUnfillCqa75(postData.nik, postData.targetNik);
         break;
       default:
         result = { success: false, message: "Action tidak dikenal." };

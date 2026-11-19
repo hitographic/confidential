@@ -8,6 +8,7 @@ import RolePage from './pages/RolePage'
 import CategoryPage from './pages/CategoryPage'
 import ListPage from './pages/ListPage'
 import FormPage from './pages/FormPage'
+import Cqa75Page from './pages/Cqa75Page'
 
 function Shell() {
   const loc = useLocation()
@@ -24,6 +25,8 @@ function Shell() {
           <Route path="/kategori" element={<ProtectedRoute><CategoryPage /></ProtectedRoute>} />
           <Route path="/list/:kategori" element={<ProtectedRoute><ListPage /></ProtectedRoute>} />
           <Route path="/form" element={<ProtectedRoute><FormPage /></ProtectedRoute>} />
+          {/* Tanda tangan Form CQA-75 — file dari Drive, slot diisi per user */}
+          <Route path="/CQA-75" element={<ProtectedRoute><Cqa75Page /></ProtectedRoute>} />
           <Route path="/" element={<Navigate to="/kategori" replace />} />
           <Route path="*" element={<Navigate to="/kategori" replace />} />
         </Routes>
